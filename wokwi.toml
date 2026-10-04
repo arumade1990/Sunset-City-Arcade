@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = '.pio/build/Sunset_City_Stepper_Panel/firmware.bin'
+elf = '.pio/build/Sunset_City_Stepper_Panel/firmware.elf'
+
+[serial]
+baud = 115200
