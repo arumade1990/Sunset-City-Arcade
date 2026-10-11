@@ -80,6 +80,7 @@ bool DSP_AUD_PWR = LOW;
 
 //Internal memory bools
 bool FAULTED = LOW;
+int PwrUpComplete = 0;
 int PwrTries = 0;
 
 //Flip flop Class
@@ -456,6 +457,7 @@ bool PcPwrHandler(bool reset = false){
   static bool Step_1 = false;
   static bool Step_2 = false;
   bool result = complete;
+
   if(reset){
     complete = false;
     reset = false;
@@ -533,6 +535,7 @@ bool DisplayAudioPwr(bool reset = false){
     complete = true;
     PanelMode = Idle_State;
   }
+
   return complete;
 }
 
@@ -666,6 +669,12 @@ void loop(){
     }
     RedFlash.setInterval(1000);
     PanelMode = Fault_State;
+  }
+
+  if(PanelMode == Idle_State){
+    SEQ_START_MEM = HIGH;
+  }else{
+    SEQ_START_MEM = LOW;
   }
 
 	writeOutputs();
