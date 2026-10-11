@@ -43,8 +43,10 @@ bool HOME_BUTTON_STATE;
 bool MAINT_MODE_STATE; 
 bool JOG_DIR_STATE;
 bool JOG_PB_STATE;
+bool E_STOP_TRIGGERED;
 long STP_TO_TGT = 0;
 int horzVertMode = 0;
+
 
 // Edge tracking for FT232H pulse signal
 bool LAST_JOG_PB_STATE = LOW; 
@@ -97,22 +99,18 @@ Timer StepStateDly(2000);
 ESP_FlexyStepper stepper;
 
 void IRAM_ATTR emergencySwitchHandler() {
-  if (digitalRead(EMERGENCY_STOP_PIN) == HIGH) {
-    stepper.emergencyStop(true);
-  } else {
-    stepper.releaseEmergencyStop();
-  }
+  E_STOP_TRIGGERED = HIGH;
 }
 
 void setHome() {
   if (!HomeDelayTimer.isRunning()) {
     HomeDelayTimer.start();
-    stepper.setCurrentPositionAsHomeAndStop();
-    CURRENT_POS = stepper.getCurrentPositionInSteps();
     HOME_SET = false;
   }
 
   if (HomeDelayTimer.isReady()) {
+    stepper.setCurrentPositionAsHomeAndStop();
+    CURRENT_POS = stepper.getCurrentPositionInSteps();
     HOME_SET = true;
     HomeDelayTimer.stop(); 
   }
@@ -124,6 +122,7 @@ void readInputs(){
   MAINT_MODE_STATE = digitalRead(MAINT_MODE);
   JOG_DIR_STATE = digitalRead(JOG_DIR);
   JOG_PB_STATE = digitalRead(JOG_PB);
+  E_STOP_TRIGGERED = digitalRead(EMERGENCY_STOP_PIN);
 }
 void setup() {
   
@@ -153,8 +152,13 @@ void setup() {
 void loop() {
 
   readInputs();
+  if (E_STOP_TRIGGERED == HIGH) {
+    stepper.emergencyStop(true);
+  }else {
+    stepper.releaseEmergencyStop();
+  }
 
-  if(digitalRead(EMERGENCY_STOP_PIN) == HIGH && INIT_SPDS_SET == LOW){
+  if(E_STOP_TRIGGERED == LOW && INIT_SPDS_SET == LOW){
     stepper.setSpeedInStepsPerSecond(250);
     stepper.setAccelerationInStepsPerSecondPerSecond(250);
     stepper.setDecelerationInStepsPerSecondPerSecond(250);
@@ -215,16 +219,7 @@ void loop() {
       stepper.setDecelerationInStepsPerSecondPerSecond(DECEL_VAL);
       AUTO_SPDS_SET = HIGH;
     }
-    /*if (!IS_MOVING) {
-      if (VERT_PIN_STATE == HIGH && HORZ_PIN_STATE == LOW) {
-        //stepper.moveToPositionInSteps(VERT_POS);
-        stepper.setTargetPositionInSteps(VERT_POS); 
-      }
-      else if (HORZ_PIN_STATE == HIGH && VERT_PIN_STATE == LOW) {
-        //stepper.moveToPositionInSteps(HORZ_POS);
-        stepper.setTargetPositionInSteps(HORZ_POS); 
-      }
-    }*/
+
     if(!VERT_PIN_STATE && HORZ_PIN_STATE && !IS_MOVING){
       horzVertMode = 2;
     }else if(VERT_PIN_STATE && !HORZ_PIN_STATE && !IS_MOVING){
@@ -248,7 +243,6 @@ void loop() {
           }else if(!stepper.motionComplete()){
             horzVertMode = 1;
           }
-           
           break;
         case 2:
           readInputs();
@@ -269,7 +263,4 @@ void loop() {
   }else{
     AUTO_SPDS_SET = LOW;
   }
-
-  //stepper.processMovement();
-
 }

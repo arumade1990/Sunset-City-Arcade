@@ -1,20 +1,20 @@
-//This code is for the Power Sequence Panel for the Sunset City Arcade Project
-//Andy Rumade - 9/8/26
+// This code is for the Power Sequence Panel for the Sunset City Arcade Project
+// Andy Rumade - 9/8/26
 
 #include <Arduino.h>
 
-//Define the INPUT pins.
-const int IX00 = 17;
-const int IX01 = 18;
-const int IX02 = 19;
-const int IX03 = 21;
-const int IX04 = 22;
-const int IX05 = 23;
-const int IX06 = 27;
-const int IX07 = 32;
-const int IX10 = 33;
+// Define the INPUT pins
+const int IX00 = 17; // ON PB
+const int IX01 = 18; // PLC 1+2 READY
+const int IX02 = 19; // PC RUN FROM PLC 2 (FT232H)
+const int IX03 = 21; // _60VDC OK
+const int IX04 = 22; // MAINT MODE KEY
+const int IX05 = 23; // SHUTDOWN READY FROM PLC 2
+const int IX06 = 27; // MAINT PB
+const int IX07 = 32; // SPARE
+const int IX10 = 33; // STEPPER PANEL FAULT
 
-//Create states for the input pins.
+// Input states
 bool IX00_ST = LOW;
 bool IX01_ST = LOW;
 bool IX02_ST = LOW;
@@ -25,19 +25,19 @@ bool IX06_ST = LOW;
 bool IX07_ST = LOW;
 bool IX10_ST = LOW;
 
-//Define the OUTPUT pins.
-const int QX00 = 1;
-const int QX01 = 2;
-const int QX02 = 3;
-const int QX03 = 4;
-const int QX04 = 5;
-const int QX05 = 12;
-const int QX06 = 13;
-const int QX07 = 14;
-const int QX10 = 15;
-const int QX11 = 16;
+// Define the OUTPUT pins 
+const int QX00 = 1;  // CR3 - SEQUENCE START
+const int QX01 = 2;  // CR4 - SEQUENCE STOP
+const int QX02 = 3;  // CR2 - PLC 1 READY
+const int QX03 = 4;  // CR5 - GREEN PL
+const int QX04 = 5;  // CR6 - RED PL
+const int QX05 = 12; // CR7 - 60VDC AND PC POWER
+const int QX06 = 13; // CR8 - SYSTEM READY 
+const int QX07 = 14; // CR9 - TOTAL POWER OFF
+const int QX10 = 15; // CR10 - PC POWER PULSE
+const int QX11 = 16; // CR10.5 - DISPLAY AND AUDIO POWER CONACTOR
 
-//Create states for the output pins.
+// Output states
 bool QX00_ST = LOW;
 bool QX01_ST = LOW;
 bool QX02_ST = LOW;
@@ -49,59 +49,69 @@ bool QX07_ST = LOW;
 bool QX10_ST = LOW;
 bool QX11_ST = LOW;
 
-
-//Define the ANALOG INPUT pins.
+// Define the ANALOG INPUT pins
 const int IW00 = 34;
 const int IW01 = 35;
 const int IW02 = 36;
 const int IW03 = 39;
 
-//Define the ANALOG OUTPUT pins.
-const int QW00 = 25;
-const int QW01 = 26;
-
-//Create bits for easier to read code
+// Input aliases
 bool PWR_PB = LOW;
-bool SEQ_START = LOW;
-bool SEQ_STOP = LOW;
-bool MNT_MODE_ACTIVE = LOW;
-bool MNT_MODE_PB = LOW;
-bool _60VDC_OK = LOW;
+bool BOTH_PLC_RDY = LOW;
 bool SYS_RDY = LOW;
+bool _60VDC_OK = LOW;
+bool MNT_MODE_ACTIVE = LOW;
 bool SHUTDOWN_RDY = LOW;
-bool FRC_SHUTDOWN = LOW;
+bool MNT_MODE_PB = LOW;
+bool STP_PNL_FLT = LOW;
+
+//Output aliases
+bool SEQ_START_MEM = LOW;
+bool SEQ_STOP_MEM = LOW;
 bool PLC1_RDY = LOW;
 bool GRN_PL = LOW;
 bool RED_PL = LOW;
 bool MC2_PWR = LOW;
 bool SYS_RDY_OUT = LOW;
-bool BOTH_PLC_RDY = LOW;
-bool PC_PWR_PLS = LOW;
 bool TOTAL_PWR_OFF = LOW;
+bool PC_PWR_PLS = LOW;
+bool DSP_AUD_PWR = LOW;
 
-//Memory bits and such
-bool PWR_PB_MEM = LOW;
-bool SYS_RDY_MEM = LOW;
-bool PC_PWR_UP_FAILED = LOW;
-bool SEQ_START_MEM = LOW;
-bool SEQ_STOP_MEM = LOW;
-bool PWR_DOWN_INIT = LOW;
-bool PWR_PB_COOLDOWN = LOW;
-bool RED_LT_ST = LOW;
-bool GRN_LT_ST = LOW;
-bool TEN_SEC_STRT = LOW;
-bool ATMPT_PWR = LOW;
-bool STP_PNL_FLT = LOW;
+//Internal memory bools
+bool FAULTED = LOW;
+int PwrTries = 0;
 
-//Bits to use as flags for various things
-bool FLAG_A = LOW;
-bool FLAG_B = LOW;
-bool FLAG_C = LOW;
+//Flip flop Class
+class ToggleFlipFlop {
+  private:
+    bool lastToggleState = false;
+    unsigned long lastDebounceTime = 0;
+    const unsigned long debounceDelay = 50; 
 
-//Power Up Attempts
-int PWR_UP_TRY = 0;
+  public:
+    void update(bool &targetVar, bool toggleInput, bool togglePressedState) {
 
-//Create a timer class for a reusable timer setup. 
+      bool isTogglePressed = (toggleInput == togglePressedState);
+
+      if (isTogglePressed != lastToggleState) {
+        if ((millis() - lastDebounceTime) > debounceDelay) {
+
+          if (isTogglePressed) {
+            targetVar = !targetVar; // Flip the state
+          }
+          lastDebounceTime = millis();
+          lastToggleState = isTogglePressed;
+        }
+      }
+    }
+
+    void reset(bool &targetVar){
+      targetVar = false; 
+      lastToggleState = false; 
+    }
+};
+
+// Reusable timer engine
 class Timer {
   private:
     unsigned long previousMillis;
@@ -115,78 +125,244 @@ class Timer {
       running = false;
     }
 
-    // Start or restart the timer
     void start() {
       previousMillis = millis();
       running = true;
     }
+	
+    bool isRunning() {
+      return running;
+    }
 
-    // Stop the timer
     void stop() {
       running = false;
     }
 
-    // Change interval dynamically
     void setInterval(unsigned long newInterval) {
       interval = newInterval;
     }
 
-    // Check if the timer has expired
     bool isReady() {
       if (!running) return false;
-      
       unsigned long currentMillis = millis();
       if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis; // Reset for repeating timer
+        previousMillis = currentMillis; 
         return true;
       }
       return false;
     }
-	
-	bool oneShotReady(){
-	  if (!running) return false;
-
-	  unsigned long currentMillis = millis();
-	  if (currentMillis - previousMillis >= interval){
-		return true;
-	  }
-	  return false;
-	}
 };
 
-//Create general timer objects.
-Timer DeBounceTimer(50); //Might not be used.
-Timer HalfSecTimer(500);
-Timer OneSecTimer(1000);
-Timer FiveSecTimer(5000);
-Timer TenSecTimer(10000);
+// Flasher engine
+class Flasher {
+  private:
+    unsigned long previousMillis;
+    unsigned long interval;
+    bool running;
+    bool idleState;
+  
+  public:
+    Flasher(unsigned long currentInterval) {
+      previousMillis = 0;
+      interval = currentInterval;
+      running = false;
+      idleState = false;
+    }
 
-//Specific Timers.
-Timer PcPowerPulse(1000);
-Timer SysRdyDly(3000);
-Timer PcPowerDly(2000);
-Timer PcPulseCycleTimer(600000); //10 Minutes
-Timer ThirtySecTimer(30000); //30 seconds
-Timer GrnTimer(1000);
-Timer RedTimer(1000);
+    bool start(bool startIdleState) {
+      previousMillis = millis();
+      idleState = startIdleState;
+      running = true;
+      return true; 
+    }
 
-//Variable timer
-Timer VarTimer(1000); //1 sec used as default. 
+    bool flash(bool &variableToFlash) {
+      if (!running) {
+        variableToFlash = idleState;
+        return false;
+      }
+      
+      unsigned long currentMillis = millis();
+      if (currentMillis - previousMillis >= interval) {
+        previousMillis = currentMillis;
+        variableToFlash = !variableToFlash; 
+        return true; 
+      }
+      return false; 
+    }
 
-//===================================================================Function declaration begin.
+    void setInterval(unsigned long newInterval) {
+      interval = newInterval;
+    }
+
+    bool stop() {
+      running = false;
+      return true;
+    }
+
+    bool isRunning() {
+      return running;
+    }
+};
+
+//Special Timers
+class OneShotPulse {
+  private:
+    unsigned long startTime;
+    bool isRunning = false;
+    bool lastTriggerState = false;
+
+  public:
+    void update(bool &pulsedVar, bool pulsedState, bool trigger, bool trigState, unsigned long duration) {
+      bool triggerActivated = (trigger == trigState && lastTriggerState != trigState);
+      lastTriggerState = trigger;
+
+      if (triggerActivated && !isRunning) {
+        pulsedVar = pulsedState;
+        startTime = millis();
+        isRunning = true;
+      }
+
+      if (isRunning) {
+        if (millis() - startTime >= duration) {
+          pulsedVar = !pulsedState;
+          isRunning = false;
+        }
+      }
+    }
+
+    void reset(){
+      isRunning = false;
+      lastTriggerState = false;
+    }
+};
+
+class TimerON {
+  private:
+    unsigned long startTime = 0;
+    bool isRunning = false;
+
+  public:
+    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
+
+      bool triggerActivated = (trigger == trigState);
+
+      if (triggerActivated) {
+        if (!isRunning) {
+          startTime = millis();
+          isRunning = true;
+        }
+
+        if (millis() - startTime >= duration) {
+          timedVar = timedState; 
+        } else {
+          timedVar = !timedState; 
+        }
+      } else {
+        isRunning = false;
+        timedVar = !timedState; 
+      }
+    }
+
+    void reset(){
+      isRunning = false;
+      startTime = 0;
+    }
+};
+
+class TimerOFF{
+  private:
+    unsigned long startTime;
+    bool isRunning = false;
+    bool lastTriggerState = false;
+    bool trigWasPressed = false;
+
+  public:
+    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
+
+      bool triggerPressed;
+      
+      if (trigger == trigState){
+        triggerPressed = true;
+      }else{
+        triggerPressed = false;
+      }
+
+      if (triggerPressed == true) {
+        timedVar = timedState;
+        trigWasPressed = true;
+        isRunning = false;
+      }
+      if(triggerPressed == false && trigWasPressed == true && !isRunning){
+        startTime = millis();
+        isRunning = true;
+      }
+
+      if (isRunning) {
+        if (millis() - startTime >= duration) {
+          timedVar = !timedState;
+          trigWasPressed = false;
+          isRunning = false;
+        }
+      }
+    }
+
+    void reset(){
+      isRunning = false;
+      startTime = 0;
+      trigWasPressed = false;
+    }
+};
+
+//Instantiation of class objects
+
+//Timers
+Timer PcPwrCycleTimer(300000); //5 minutes
+Timer PcPwrBtnCycleTimer(600000); //10 minutes
+Timer PcPwrBtnDly(2000);
+Timer ScreenAudioDly(5000);
+Timer PnlShutdownCycleTime(30000);
+
+//Special timers
+TimerOFF PwrBtnCoolDown;
+TimerON ShutdownConfirmTmr;
+TimerON TotalShutdownTimer;
+OneShotPulse PcPwrBtnPls;
+
+//Flip Flops
+ToggleFlipFlop PwrBtnFF;
+
+//Flashers
+Flasher RedFlash(1000);
+Flasher GrnFlash(2000);
+
+enum RunMode {
+  Boot_State,
+  PowerUp_State, 
+  Maint_State,
+  Fault_State, 
+  Shutdown_State,
+  PcPwrOn_State,
+  DispAudPwr_State,
+  Idle_State
+};
+
+RunMode PanelMode = Boot_State;
+
+// ========================================== Application Routines
 
 void readInputs(){
-	IX00_ST = digitalRead(IX00); //ON PB
-	IX01_ST = digitalRead(IX01); //PLC 1+2 READY
-	IX02_ST = digitalRead(IX02); //PC RUN FROM PLC 2 (FT232H)
-	IX03_ST = digitalRead(IX03); //_60VDC OK
-	IX04_ST = digitalRead(IX04); //MAINT MODE KEY
-	IX05_ST = digitalRead(IX05); //SHUTDOWN READY FROM PLC 2
-	IX06_ST = digitalRead(IX06); //MAINT PB
-	IX07_ST = digitalRead(IX07); //STEPPER PANEL FAULT
-	IX10_ST = digitalRead(IX10); //SPARE
+	IX00_ST = digitalRead(IX00); // ON PB
+	IX01_ST = digitalRead(IX01); // PLC 1+2 READY
+	IX02_ST = digitalRead(IX02); // PC RUN FROM PLC 2 (FT232H)
+	IX03_ST = digitalRead(IX03); // _60VDC OK
+	IX04_ST = digitalRead(IX04); // MAINT MODE KEY
+	IX05_ST = digitalRead(IX05); // SHUTDOWN READY FROM PLC 2
+	IX06_ST = digitalRead(IX06); // MAINT PB
+	IX07_ST = digitalRead(IX07); // SPARE PIN
+	IX10_ST = digitalRead(IX10); // STEPPER PANEL FAULT  
 
-	//Copy really important values to tags with better names.
+	// Copy values to matching tags
 	PWR_PB = IX00_ST;
 	BOTH_PLC_RDY = IX01_ST;
 	SYS_RDY = IX02_ST;
@@ -194,265 +370,301 @@ void readInputs(){
 	MNT_MODE_ACTIVE = IX04_ST;
 	SHUTDOWN_RDY = IX05_ST;
 	MNT_MODE_PB = IX06_ST;
-	STP_PNL_FLT = IX10_ST;
+	STP_PNL_FLT = IX10_ST;      
 }
 
-void writeOutputs(){
 
-	QX00_ST = SEQ_START_MEM;
-	QX01_ST = SEQ_STOP_MEM;
-	QX02_ST = PLC1_RDY;
-	QX03_ST = GRN_PL;
-	QX04_ST = RED_PL;
-	QX05_ST = MC2_PWR;
-	QX06_ST = SYS_RDY_OUT;
-	QX07_ST = TOTAL_PWR_OFF;
-	QX10_ST = PC_PWR_PLS;
+void writeOutputs() {
+  QX00_ST = SEQ_START_MEM;
+  QX01_ST = SEQ_STOP_MEM;
+  QX02_ST = PLC1_RDY;
+  QX03_ST = GRN_PL;
+  QX04_ST = RED_PL;
+  QX05_ST = MC2_PWR;
+  QX06_ST = SYS_RDY_OUT;
+  QX07_ST = TOTAL_PWR_OFF;
+  QX10_ST = PC_PWR_PLS;
+  QX11_ST = DSP_AUD_PWR;
 
-	digitalWrite(QX00, QX00_ST); //CR3 - SEQUENCE START
-	digitalWrite(QX01, QX01_ST); //CR4 - SEQUENCE STOP
-	digitalWrite(QX02, QX02_ST); //CR2 - PLC 1 READY
-	digitalWrite(QX03, QX03_ST); //CR5 - GREEN PL
-	digitalWrite(QX04, QX04_ST); //CR6 - RED PL
-	digitalWrite(QX05, QX05_ST); //CR7 - 60VDC AND PC POWER
-	digitalWrite(QX06, QX06_ST); //CR8 - SYSTEM READY 
-	digitalWrite(QX07, QX07_ST); //CR9 - TOTAL POWER OFF
-	digitalWrite(QX10, QX10_ST); //CR10 - PC POWER PULSE
-	digitalWrite(QX11, QX11_ST); //CR10.5? - DISPLAY AND AUDIO POWER CONACTOR
+  digitalWrite(QX00, QX00_ST);
+  digitalWrite(QX01, QX01_ST);
+  digitalWrite(QX02, QX02_ST);
+  digitalWrite(QX03, QX03_ST);
+  digitalWrite(QX04, QX04_ST);
+  digitalWrite(QX05, QX05_ST);
+  digitalWrite(QX06, QX06_ST);
+  digitalWrite(QX07, QX07_ST);
+  digitalWrite(QX10, QX10_ST);
+  digitalWrite(QX11, QX11_ST);
 }
 
-void maintMode(){
-	while (MNT_MODE_ACTIVE == HIGH){
-		readInputs();
-		if (MNT_MODE_ACTIVE == HIGH){
-			/*
-			//
-			//
-			//Maint Mode code goes here
-			//
-			//
-			*/
-		}
-		else {
-			writeOutputs();
-			break;
-		}
-		writeOutputs();
-	}
-}
-
-void GrnLtFnc(unsigned long duration, bool G_active){
-	static bool GtimerStarted = LOW;
-	if(GtimerStarted == LOW && G_active == HIGH){
-		GrnTimer.setInterval(duration);
-		GrnTimer.start();
-		GtimerStarted = HIGH;
-	}
-	if(GrnTimer.isReady() && RED_LT_ST == LOW && MNT_MODE_ACTIVE == LOW && G_active == HIGH){
-	  GRN_PL = !GRN_PL;
-		GRN_LT_ST = HIGH;
-	}else if(G_active == LOW){
-		GrnTimer.stop();
-		GRN_PL = LOW;
-		GRN_LT_ST = LOW;
-		GtimerStarted = LOW;
-	}
-}
-
-void RedLtFnc(unsigned long duration, bool R_active){
-	static bool RtimerStarted = LOW;
-	if(RtimerStarted == LOW && R_active == HIGH){
-		RedTimer.setInterval(duration);
-		RedTimer.start();
-		RtimerStarted = HIGH;
-	}
-	if(RedTimer.isReady() && GRN_LT_ST == LOW && R_active == HIGH){
-		RED_PL = !RED_PL;
-		RED_LT_ST = HIGH;
-	}else if(R_active == LOW){
-		RedTimer.stop();
-		RED_PL = LOW;
-		RED_LT_ST = LOW;
-		RtimerStarted = LOW;
-	}
-}
-
-void PcPwrOn(){
-	GrnLtFnc(1000, LOW);
-	RedLtFnc(1000, LOW);
-	while(MC2_PWR == HIGH && SYS_RDY_MEM == LOW && PC_PWR_UP_FAILED == LOW && MNT_MODE_ACTIVE == LOW){
-		GrnLtFnc(500, HIGH);
-		readInputs();
-		if(_60VDC_OK == HIGH && SYS_RDY == LOW && FLAG_A == LOW){
-			PcPowerDly.start();
-			FLAG_A = HIGH;
-		}
-		if(PcPowerDly.isReady() && FLAG_B == LOW){
-			PcPowerDly.stop();
-			PC_PWR_PLS = HIGH;
-			FLAG_B = HIGH;
-			PcPowerPulse.start();
-		}
-		if(FLAG_A == HIGH && FLAG_B == HIGH && FLAG_C == LOW && PcPowerPulse.isReady()){
-			PC_PWR_PLS = LOW;
-			PcPowerPulse.stop();
-			PcPulseCycleTimer.start();
-			FLAG_C = HIGH;
-		}
-		if(PcPulseCycleTimer.isReady() && SYS_RDY == LOW && PWR_UP_TRY <= 2){
-			FLAG_A = LOW;
-			FLAG_B = LOW;
-			FLAG_C = LOW; 
-			PWR_UP_TRY++;
-		}else if(SYS_RDY == HIGH){
-			SYS_RDY_MEM = HIGH;
-			PcPulseCycleTimer.stop();
-			PWR_UP_TRY = 0;
-			writeOutputs();
-			break;
-		}
-		if(_60VDC_OK == HIGH && SYS_RDY == LOW && PWR_UP_TRY >= 3){
-			PC_PWR_UP_FAILED = HIGH;
-			writeOutputs();
-			GrnLtFnc(500, LOW);
-			writeOutputs();
-			break;
-		}
-		writeOutputs();
-	}	
-}
-
-void PcPwrOnFail(){
-	RedLtFnc(500, LOW);
-	while(MNT_MODE_ACTIVE == LOW && PC_PWR_UP_FAILED == HIGH){
-		RedLtFnc(500, HIGH);
-		readInputs();
-		RedLtFnc(500, HIGH);
-		if(MNT_MODE_ACTIVE == HIGH && MNT_MODE_PB == HIGH){
-			RedLtFnc(500, LOW);
-			delay(5000);
-			PC_PWR_UP_FAILED = LOW;
-			writeOutputs();
-			break;	
-		}
-		writeOutputs();
-	}
+void MaintMode(){
+  return;
 }
 
 void PcPwrOff(){
-	while(PWR_DOWN_INIT == HIGH){
-		readInputs();
-		if(SHUTDOWN_RDY == HIGH && SYS_RDY == LOW && MNT_MODE_ACTIVE == LOW){
-			TOTAL_PWR_OFF = HIGH;
-		}
-		writeOutputs();
-	}
+
+  static bool shutdownConfirm = LOW;
+
+  if(PwrTries > 0){
+    if(SHUTDOWN_RDY){
+      shutdownConfirm = HIGH;
+    }else if(!SHUTDOWN_RDY){
+      shutdownConfirm = LOW;
+    }else if(PwrTries == 0){
+      TOTAL_PWR_OFF = HIGH;
+      if(!PnlShutdownCycleTime.isRunning()){
+        PnlShutdownCycleTime.start();
+      }
+    }
+
+    ShutdownConfirmTmr.update(MC2_PWR, LOW, shutdownConfirm, HIGH, 5000);
+
+    if(!MC2_PWR && shutdownConfirm){
+      TotalShutdownTimer.update(TOTAL_PWR_OFF, HIGH, MC2_PWR, LOW, 3000);
+      if(!PnlShutdownCycleTime.isRunning()){
+        PnlShutdownCycleTime.start();
+      }
+    }
+
+    if(PnlShutdownCycleTime.isReady()){
+      PanelMode = Fault_State;
+      PnlShutdownCycleTime.stop();
+      return;
+    }
+  }
+  return;
 }
 
-//===================================================================Function declaration end.
+bool PwrBtn(){
+  static bool coolDown = LOW;
+  static bool PWR_PB_MEM = LOW;
+
+  if(!coolDown){
+    PwrBtnFF.update(PWR_PB_MEM, PWR_PB, HIGH);
+  }
+  PwrBtnCoolDown.update(coolDown, HIGH, PWR_PB, HIGH, 5000);
+  
+  return PWR_PB_MEM;
+}
+
+bool PcPwrHandler(bool reset = false){
+  
+  static bool PwrBtnTrig = false;
+  static bool complete = false;
+  static bool Step_1 = false;
+  static bool Step_2 = false;
+  bool result = complete;
+  if(reset){
+    complete = false;
+    reset = false;
+    PcPwrBtnDly.stop();
+    PcPwrBtnPls.reset();
+    PcPwrBtnCycleTimer.stop();
+  }
+
+  if(!FAULTED && !MNT_MODE_ACTIVE){
+    if(!PcPwrBtnDly.isRunning() && !complete){
+      PcPwrBtnDly.start();
+    }
+
+    if(PcPwrBtnDly.isReady() && !Step_1){
+      PcPwrBtnDly.stop();
+      Step_1 = true;
+    }
+
+    if(Step_1 && !Step_2){
+      PwrBtnTrig = HIGH;
+      Step_2 = HIGH;
+      ++PwrTries;
+    }
+
+    PcPwrBtnPls.update(PC_PWR_PLS, HIGH, PwrBtnTrig, HIGH, 1000);
+
+    if(!PcPwrBtnCycleTimer.isRunning()){
+      PcPwrBtnCycleTimer.start();
+    }
+
+    if(PcPwrBtnCycleTimer.isReady() && PwrTries >= 3){
+      PcPwrBtnCycleTimer.stop();
+      FAULTED = HIGH;
+      complete = false;
+    }else if(PcPwrBtnCycleTimer.isReady()){
+      Step_2 = LOW;
+      PwrBtnTrig = LOW;
+    }
+
+    if(SYS_RDY){
+      PcPwrBtnCycleTimer.stop();
+      SYS_RDY_OUT = HIGH;
+      complete = true;
+      PanelMode = DispAudPwr_State;
+    }
+
+  }else if(FAULTED){
+    PanelMode = Fault_State;
+  }else if(MNT_MODE_ACTIVE){
+    PanelMode = Maint_State;
+    PcPwrBtnCycleTimer.stop();
+    PcPwrBtnDly.stop();
+  }
+
+  return complete;
+
+}
+
+bool DisplayAudioPwr(bool reset = false){
+
+  static bool complete = false;
+
+  if(reset){
+    complete = false;
+    ScreenAudioDly.stop();
+  }
+
+  if(!ScreenAudioDly.isRunning() && !complete){
+    ScreenAudioDly.start();
+  }
+  
+  if(ScreenAudioDly.isReady() && !complete){
+    ScreenAudioDly.stop();
+    DSP_AUD_PWR = HIGH;
+    complete = true;
+    PanelMode = Idle_State;
+  }
+  return complete;
+}
+
+void FaultMode(){
+  return;
+}
+
+bool PowerUpMode(bool reset = false){
+  static bool complete = false;
+  bool result = complete;
+
+  if(!PcPwrCycleTimer.isRunning()){
+    PcPwrCycleTimer.start();
+  }
+  
+  if(reset){
+    complete = false;
+    reset = false;
+  }
+  if(!PcPwrCycleTimer.isReady()){
+    if(!BOTH_PLC_RDY && !_60VDC_OK && !complete){ //Initial condition to trigger the MC2 on
+      MC2_PWR = HIGH;
+    }else if(MC2_PWR && BOTH_PLC_RDY &&_60VDC_OK){ //Condition to seal it in
+      MC2_PWR = HIGH;
+      complete = true;
+      PanelMode = PcPwrOn_State;
+      PcPwrCycleTimer.stop();
+    }else{
+      complete = false;
+    }
+  }else if(PcPwrCycleTimer.isReady()){
+    PanelMode = Fault_State;
+    complete = false;
+    PcPwrCycleTimer.stop();
+  }
+
+  return result;
+
+}
 
 void setup(){
-	//Set the input pins as inputs. The boards use 10k pull down resistors.
-	pinMode(IX00, INPUT); //ON PB
-	pinMode(IX01, INPUT); //PLC 1+2 READY
-	pinMode(IX02, INPUT); //PC RUN FROM PLC 2 (FT232H)
-	pinMode(IX03, INPUT); //_60VDC OK
-	pinMode(IX04, INPUT); //MAINT MODE KEY
-	pinMode(IX05, INPUT); //SHUTDOWN READY FROM PLC 2
-	pinMode(IX06, INPUT); //MAINT PB
-	pinMode(IX07, INPUT); //SPARE
-	pinMode(IX10, INPUT); //SPARE
+	pinMode(IX00, INPUT);
+	pinMode(IX01, INPUT);
+	pinMode(IX02, INPUT);
+	pinMode(IX03, INPUT);
+	pinMode(IX04, INPUT);
+	pinMode(IX05, INPUT);
+	pinMode(IX06, INPUT);
+	pinMode(IX07, INPUT);
+	pinMode(IX10, INPUT);
 
-	//Set the output pins as outputs. The boards also use 10k pull down resistors on these too. 
-	pinMode(QX00, OUTPUT); //CR3 - SEQUENCE START
-	pinMode(QX01, OUTPUT); //CR4 - SEQUENCE STOP
-	pinMode(QX02, OUTPUT); //CR2 - PLC 1 READY
-	pinMode(QX03, OUTPUT); //CR5 - GREEN PL
-	pinMode(QX04, OUTPUT); //CR6 - RED PL
-	pinMode(QX05, OUTPUT); //CR7 - 60VDC AND PC POWER
-	pinMode(QX06, OUTPUT); //CR8 - SYSTEM READY 
-	pinMode(QX07, OUTPUT); //CR9 - TOTAL POWER OFF
-	pinMode(QX10, OUTPUT); //CR10 - PC POWER PULSE 
-	pinMode(QX11, OUTPUT); //CR10.5? - DISPLAY AND AUDIO POWER CONACTOR
+	pinMode(QX00, OUTPUT);
+	pinMode(QX01, OUTPUT);
+	pinMode(QX02, OUTPUT);
+	pinMode(QX03, OUTPUT);
+	pinMode(QX04, OUTPUT);
+	pinMode(QX05, OUTPUT);
+	pinMode(QX06, OUTPUT);
+	pinMode(QX07, OUTPUT);
+	pinMode(QX10, OUTPUT);
+	pinMode(QX11, OUTPUT);
 
-	//Start the timers.
-	DeBounceTimer.start();
-	HalfSecTimer.start();
-	OneSecTimer.start();
-	TenSecTimer.start();
+  RedFlash.start(LOW);
+  GrnFlash.start(LOW);
+
 }
-
-void loop(){
-	delay(10); //Scan time
+void loop(){ 
+	delay(10);
 	readInputs();
-	PLC1_RDY = HIGH; //PLC READY
-	
-	//===================================================================Fault handler logic begin.
-	while(STP_PNL_FLT == HIGH){
-		RedLtFnc(500,STP_PNL_FLT);
-		if(STP_PNL_FLT == LOW){
-			break;
-		}
-	}
-	//===================================================================Fault handler logic end.
-	//===================================================================Power button handler logic begin.
-	if(PWR_DOWN_INIT == LOW && PWR_PB == HIGH && PWR_PB_MEM == LOW){
-		PWR_PB_MEM = HIGH;
-		FiveSecTimer.start(); //Start the 5 second timer.
-		ThirtySecTimer.start();
-	}
-	if(SEQ_STOP_MEM ==  LOW && PWR_PB_MEM == HIGH && MNT_MODE_ACTIVE == LOW && FiveSecTimer.isReady() && SEQ_START == LOW ){
-		PWR_PB_MEM = LOW;
-		SEQ_START = HIGH; //Indicates initilization of system startup.(Trying to power up system.)	
-		FiveSecTimer.stop();
-	}else if(SEQ_START == HIGH && SEQ_START_MEM == HIGH && SYS_RDY_MEM == HIGH && PWR_PB_MEM == HIGH){
-		SEQ_START = LOW;
-	}
-	if(SEQ_START_MEM == LOW && SEQ_START == HIGH && SYS_RDY_MEM == HIGH){
-		SEQ_START_MEM = HIGH; //System successfully started.
-	}
-	//===================================================================Power button handler logic end. 
-	//===================================================================MC2 Energize begin.
-	if(SEQ_START == HIGH && PLC1_RDY == HIGH){
-		MC2_PWR = HIGH;
-	}
-	if(MC2_PWR == HIGH && BOTH_PLC_RDY == HIGH){
-		MC2_PWR = HIGH; //Set the output high as a seal-in.
-	}
-	//===================================================================MC2 Energize end.
-	//===================================================================Green light indicator begin. 
-	if(SEQ_START = HIGH && SEQ_START_MEM == LOW){
-		GrnLtFnc(1000, HIGH);
-		if(TEN_SEC_STRT = LOW){
-			TenSecTimer.start();
-		}
-	}else if(SEQ_START_MEM = HIGH){
-		GrnLtFnc(1000, LOW);
-		GRN_PL = SEQ_START_MEM;
-	}
-	
-	//==================================================================Green light indicator end.
-	//==================================================================PC power pulse begin.
-	if((MC2_PWR == HIGH && ATMPT_PWR == LOW && TenSecTimer.isReady()) || ATMPT_PWR == HIGH){
-		ATMPT_PWR = HIGH;
-		TenSecTimer.stop(); 
-		PcPwrOn();
-	}
-	//==================================================================PC power pulse end. 
-	//==================================================================PC power up failure condition handler begin.
-	if(PC_PWR_UP_FAILED == HIGH){
-		PcPwrOnFail();
-	}
-	//==================================================================PC power up failure condition handler end.
-	//==================================================================PC power off begin.
-	if(ThirtySecTimer.isReady() || PWR_PB_COOLDOWN == HIGH){
-		PWR_PB_COOLDOWN = HIGH;
-		if(PWR_DOWN_INIT == LOW && PWR_PB_MEM == HIGH && SEQ_START_MEM == HIGH && PWR_PB_COOLDOWN == HIGH)
-			PWR_DOWN_INIT = HIGH;
-			ThirtySecTimer.stop();
-			PcPwrOff();
-	}
-	//==================================================================PC Power off end.
+
+  if(PwrBtn() || PanelMode == Shutdown_State){
+    switch (PanelMode)
+    {
+    case Boot_State:
+      PLC1_RDY = HIGH;
+      GrnFlash.flash(GRN_PL);
+      PanelMode = PowerUp_State;
+      break;
+    case PowerUp_State:
+      GrnFlash.setInterval(1000);
+      GrnFlash.flash(GRN_PL);
+      PowerUpMode();
+      break;
+    case PcPwrOn_State:
+      GrnFlash.setInterval(500);
+      GrnFlash.flash(GRN_PL);
+      PcPwrHandler();
+    break;
+    case DispAudPwr_State:
+      DisplayAudioPwr();
+      break;
+    case Idle_State:
+      if(GrnFlash.isRunning()){
+        GrnFlash.stop();
+        GRN_PL = HIGH;
+      }
+      break;
+    case Shutdown_State:
+      GrnFlash.flash(GRN_PL);
+      PcPwrOff();
+      break;
+    case Fault_State:
+      RedFlash.flash(RED_PL);
+      break;
+    case Maint_State:
+      GrnFlash.flash(GRN_PL);
+      break;
+    default:
+      break;
+    }
+  }else if(!PwrBtn() && PLC1_RDY){
+    if(!GrnFlash.isRunning()){
+      GrnFlash.start(LOW);
+      GrnFlash.setInterval(2000);
+    }
+    PanelMode = Shutdown_State;
+  }else if(MNT_MODE_ACTIVE){
+    if(!GrnFlash.isRunning()){
+      GrnFlash.start(LOW);
+    }
+    GrnFlash.setInterval(3000);
+    PanelMode = Maint_State;
+  }else if(FAULTED){
+    if(GrnFlash.isRunning()){
+        GrnFlash.stop();
+        GRN_PL = LOW;
+    }
+    if(!RedFlash.isRunning()){
+      RedFlash.start(LOW);
+    }
+    RedFlash.setInterval(1000);
+    PanelMode = Fault_State;
+  }
+
 	writeOutputs();
-	maintMode();
 }
