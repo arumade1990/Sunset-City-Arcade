@@ -363,28 +363,28 @@ void readInputs(){
 	IX10_ST = digitalRead(IX10); // STEPPER PANEL FAULT  
 
 	// Copy values to matching tags
-	PWR_PB = IX00_ST;
-	BOTH_PLC_RDY = IX01_ST;
-	SYS_RDY = IX02_ST;
-	_60VDC_OK = IX03_ST;
-	MNT_MODE_ACTIVE = IX04_ST;
-	SHUTDOWN_RDY = IX05_ST;
-	MNT_MODE_PB = IX06_ST;
-	STP_PNL_FLT = IX10_ST;      
+	PWR_PB = IX00_ST; //Green
+	BOTH_PLC_RDY = IX01_ST; //Blue
+	SYS_RDY = IX02_ST; //Green
+	_60VDC_OK = IX03_ST; //Blue
+	MNT_MODE_ACTIVE = IX04_ST; //Yellow
+	SHUTDOWN_RDY = IX05_ST; //White
+	MNT_MODE_PB = IX06_ST; //Black
+	STP_PNL_FLT = IX10_ST; //Red  
 }
 
 
 void writeOutputs() {
-  QX00_ST = SEQ_START_MEM;
-  QX01_ST = SEQ_STOP_MEM;
-  QX02_ST = PLC1_RDY;
-  QX03_ST = GRN_PL;
-  QX04_ST = RED_PL;
-  QX05_ST = MC2_PWR;
-  QX06_ST = SYS_RDY_OUT;
-  QX07_ST = TOTAL_PWR_OFF;
-  QX10_ST = PC_PWR_PLS;
-  QX11_ST = DSP_AUD_PWR;
+  QX00_ST = SEQ_START_MEM; //Green
+  QX01_ST = SEQ_STOP_MEM; //Yellow
+  QX02_ST = PLC1_RDY; //Purple
+  QX03_ST = GRN_PL; //Green
+  QX04_ST = RED_PL; //Red
+  QX05_ST = MC2_PWR; //Blue
+  QX06_ST = SYS_RDY_OUT; //Green
+  QX07_ST = TOTAL_PWR_OFF; //Red
+  QX10_ST = PC_PWR_PLS; //Lavender
+  QX11_ST = DSP_AUD_PWR; //Orange
 
   digitalWrite(QX00, QX00_ST);
   digitalWrite(QX01, QX01_ST);
