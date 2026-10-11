@@ -599,6 +599,7 @@ void setup(){
   GrnFlash.start(LOW);
 
 }
+
 void loop(){ 
 	delay(10);
 	readInputs();
