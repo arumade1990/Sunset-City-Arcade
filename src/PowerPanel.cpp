@@ -1,6 +1,6 @@
 // This code is for the Power Sequence Panel for the Sunset City Arcade Project
 // Andy Rumade - 9/8/26
-//Test for commit path
+//Test for commit
 
 #include <Arduino.h>
 
