@@ -1,8 +1,13 @@
 // This code is for the Power Sequence Panel for the Sunset City Arcade Project
 // Andy Rumade - 9/8/26
-//Test for commit
 
 #include <Arduino.h>
+#include <Timer.h>
+#include <ToggleFlipflop.h>
+#include <Flasher.h>
+#include <OneShotPulse.h>
+#include <TimerON.h>
+#include <TimerOFF.h>
 
 // Define the INPUT pins
 const int IX00 = 17; // ON PB
@@ -83,239 +88,6 @@ bool FAULTED = LOW;
 int PwrUpComplete = 0;
 int PwrTries = 0;
 
-//Flip flop Class
-class ToggleFlipFlop {
-  private:
-    bool lastToggleState = false;
-    unsigned long lastDebounceTime = 0;
-    const unsigned long debounceDelay = 50; 
-
-  public:
-    void update(bool &targetVar, bool toggleInput, bool togglePressedState) {
-
-      bool isTogglePressed = (toggleInput == togglePressedState);
-
-      if (isTogglePressed != lastToggleState) {
-        if ((millis() - lastDebounceTime) > debounceDelay) {
-
-          if (isTogglePressed) {
-            targetVar = !targetVar; // Flip the state
-          }
-          lastDebounceTime = millis();
-          lastToggleState = isTogglePressed;
-        }
-      }
-    }
-
-    void reset(bool &targetVar){
-      targetVar = false; 
-      lastToggleState = false; 
-    }
-};
-
-// Reusable timer engine
-class Timer {
-  private:
-    unsigned long previousMillis;
-    unsigned long interval;
-    bool running;
-
-  public:
-    Timer(unsigned long currentInterval) {
-      interval = currentInterval;
-      previousMillis = 0;
-      running = false;
-    }
-
-    void start() {
-      previousMillis = millis();
-      running = true;
-    }
-	
-    bool isRunning() {
-      return running;
-    }
-
-    void stop() {
-      running = false;
-    }
-
-    void setInterval(unsigned long newInterval) {
-      interval = newInterval;
-    }
-
-    bool isReady() {
-      if (!running) return false;
-      unsigned long currentMillis = millis();
-      if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis; 
-        return true;
-      }
-      return false;
-    }
-};
-
-// Flasher engine
-class Flasher {
-  private:
-    unsigned long previousMillis;
-    unsigned long interval;
-    bool running;
-    bool idleState;
-  
-  public:
-    Flasher(unsigned long currentInterval) {
-      previousMillis = 0;
-      interval = currentInterval;
-      running = false;
-      idleState = false;
-    }
-
-    bool start(bool startIdleState) {
-      previousMillis = millis();
-      idleState = startIdleState;
-      running = true;
-      return true; 
-    }
-
-    bool flash(bool &variableToFlash) {
-      if (!running) {
-        variableToFlash = idleState;
-        return false;
-      }
-      
-      unsigned long currentMillis = millis();
-      if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis;
-        variableToFlash = !variableToFlash; 
-        return true; 
-      }
-      return false; 
-    }
-
-    void setInterval(unsigned long newInterval) {
-      interval = newInterval;
-    }
-
-    bool stop() {
-      running = false;
-      return true;
-    }
-
-    bool isRunning() {
-      return running;
-    }
-};
-
-//Special Timers
-class OneShotPulse {
-  private:
-    unsigned long startTime;
-    bool isRunning = false;
-    bool lastTriggerState = false;
-
-  public:
-    void update(bool &pulsedVar, bool pulsedState, bool trigger, bool trigState, unsigned long duration) {
-      bool triggerActivated = (trigger == trigState && lastTriggerState != trigState);
-      lastTriggerState = trigger;
-
-      if (triggerActivated && !isRunning) {
-        pulsedVar = pulsedState;
-        startTime = millis();
-        isRunning = true;
-      }
-
-      if (isRunning) {
-        if (millis() - startTime >= duration) {
-          pulsedVar = !pulsedState;
-          isRunning = false;
-        }
-      }
-    }
-
-    void reset(){
-      isRunning = false;
-      lastTriggerState = false;
-    }
-};
-
-class TimerON {
-  private:
-    unsigned long startTime = 0;
-    bool isRunning = false;
-
-  public:
-    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
-
-      bool triggerActivated = (trigger == trigState);
-
-      if (triggerActivated) {
-        if (!isRunning) {
-          startTime = millis();
-          isRunning = true;
-        }
-
-        if (millis() - startTime >= duration) {
-          timedVar = timedState; 
-        } else {
-          timedVar = !timedState; 
-        }
-      } else {
-        isRunning = false;
-        timedVar = !timedState; 
-      }
-    }
-
-    void reset(){
-      isRunning = false;
-      startTime = 0;
-    }
-};
-
-class TimerOFF{
-  private:
-    unsigned long startTime;
-    bool isRunning = false;
-    bool lastTriggerState = false;
-    bool trigWasPressed = false;
-
-  public:
-    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
-
-      bool triggerPressed;
-      
-      if (trigger == trigState){
-        triggerPressed = true;
-      }else{
-        triggerPressed = false;
-      }
-
-      if (triggerPressed == true) {
-        timedVar = timedState;
-        trigWasPressed = true;
-        isRunning = false;
-      }
-      if(triggerPressed == false && trigWasPressed == true && !isRunning){
-        startTime = millis();
-        isRunning = true;
-      }
-
-      if (isRunning) {
-        if (millis() - startTime >= duration) {
-          timedVar = !timedState;
-          trigWasPressed = false;
-          isRunning = false;
-        }
-      }
-    }
-
-    void reset(){
-      isRunning = false;
-      startTime = 0;
-      trigWasPressed = false;
-    }
-};
-
 //Instantiation of class objects
 
 //Timers
@@ -336,7 +108,7 @@ ToggleFlipFlop PwrBtnFF;
 
 //Flashers
 Flasher RedFlash(1000);
-Flasher GrnFlash(2000);
+Flasher GrnFlash(500); //deafult 2000
 
 enum RunMode {
   Boot_State,
@@ -615,7 +387,7 @@ void setup(){
 	pinMode(QX11, OUTPUT);
 
   RedFlash.start(LOW);
-  GrnFlash.start(LOW);
+  GrnFlash.start(LOW, 5);
 
 }
 
