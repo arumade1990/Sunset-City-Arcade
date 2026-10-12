@@ -319,8 +319,8 @@ class TimerOFF{
 //Instantiation of class objects
 
 //Timers
-Timer PcPwrCycleTimer(300000); //5 minutes
-Timer PcPwrBtnCycleTimer(600000); //10 minutes
+Timer PcPwrCycleTimer(30000); //5 minutes
+Timer PcPwrBtnCycleTimer(10000); //10 minutes
 Timer PcPwrBtnDly(2000);
 Timer ScreenAudioDly(5000);
 Timer PnlShutdownCycleTime(30000);
@@ -407,6 +407,7 @@ void MaintMode(){
 void PcPwrOff(){
 
   static bool shutdownConfirm = LOW;
+  bool CycleTimeout = PnlShutdownCycleTime.isReady();
 
   if(PwrTries > 0){
     if(SHUTDOWN_RDY){
@@ -429,7 +430,7 @@ void PcPwrOff(){
       }
     }
 
-    if(PnlShutdownCycleTime.isReady()){
+    if(CycleTimeout){
       PanelMode = Fault_State;
       PnlShutdownCycleTime.stop();
       return;
@@ -456,18 +457,23 @@ bool PcPwrHandler(bool reset = false){
   static bool complete = false;
   static bool Step_1 = false;
   static bool Step_2 = false;
-  bool result = complete;
 
+  // Handle manual or automatic sequence resets
   if(reset){
     complete = false;
-    reset = false;
+    Step_1 = false;
+    Step_2 = false;
+    PwrBtnTrig = false;
+    PwrTries = 0;              // Reset your global try counter
     PcPwrBtnDly.stop();
     PcPwrBtnPls.reset();
     PcPwrBtnCycleTimer.stop();
+    return false;
   }
 
   if(!FAULTED && !MNT_MODE_ACTIVE){
-    if(!PcPwrBtnDly.isRunning() && !complete){
+    
+    if(!PcPwrBtnDly.isRunning() && !complete && PwrTries == 0){
       PcPwrBtnDly.start();
     }
 
@@ -479,42 +485,48 @@ bool PcPwrHandler(bool reset = false){
     if(Step_1 && !Step_2){
       PwrBtnTrig = HIGH;
       Step_2 = HIGH;
-      ++PwrTries;
+      ++PwrTries; 
     }
 
     PcPwrBtnPls.update(PC_PWR_PLS, HIGH, PwrBtnTrig, HIGH, 1000);
 
-    if(!PcPwrBtnCycleTimer.isRunning()){
+    if(Step_2 && !PcPwrBtnCycleTimer.isRunning()){
       PcPwrBtnCycleTimer.start();
     }
 
-    if(PcPwrBtnCycleTimer.isReady() && PwrTries >= 3){
+    if(PcPwrBtnCycleTimer.isRunning() && PcPwrBtnCycleTimer.isReady()){
       PcPwrBtnCycleTimer.stop();
-      FAULTED = HIGH;
-      complete = false;
-    }else if(PcPwrBtnCycleTimer.isReady()){
-      Step_2 = LOW;
-      PwrBtnTrig = LOW;
+
+      if(PwrTries >= 3 && !SYS_RDY){
+        FAULTED = HIGH;
+        complete = false;
+        PanelMode = Fault_State;
+      } else {
+        Step_2 = LOW;
+        PwrBtnTrig = LOW;
+        PcPwrBtnPls.reset();
+      }
     }
 
     if(SYS_RDY){
       PcPwrBtnCycleTimer.stop();
+      PcPwrBtnDly.stop();
       SYS_RDY_OUT = HIGH;
       complete = true;
       PanelMode = DispAudPwr_State;
     }
 
-  }else if(FAULTED){
+  } else if(FAULTED){
     PanelMode = Fault_State;
-  }else if(MNT_MODE_ACTIVE){
+  } else if(MNT_MODE_ACTIVE){
     PanelMode = Maint_State;
     PcPwrBtnCycleTimer.stop();
     PcPwrBtnDly.stop();
   }
 
   return complete;
-
 }
+
 
 bool DisplayAudioPwr(bool reset = false){
 
@@ -546,6 +558,7 @@ void FaultMode(){
 bool PowerUpMode(bool reset = false){
   static bool complete = false;
   bool result = complete;
+  bool CycleTimeout = PcPwrCycleTimer.isReady();
 
   if(!PcPwrCycleTimer.isRunning()){
     PcPwrCycleTimer.start();
@@ -555,7 +568,7 @@ bool PowerUpMode(bool reset = false){
     complete = false;
     reset = false;
   }
-  if(!PcPwrCycleTimer.isReady()){
+  if(!CycleTimeout){
     if(!BOTH_PLC_RDY && !_60VDC_OK && !complete){ //Initial condition to trigger the MC2 on
       MC2_PWR = HIGH;
     }else if(MC2_PWR && BOTH_PLC_RDY &&_60VDC_OK){ //Condition to seal it in
@@ -566,7 +579,10 @@ bool PowerUpMode(bool reset = false){
     }else{
       complete = false;
     }
-  }else if(PcPwrCycleTimer.isReady()){
+  }
+  
+  if(CycleTimeout){
+    FAULTED = HIGH;
     PanelMode = Fault_State;
     complete = false;
     PcPwrCycleTimer.stop();
@@ -640,6 +656,7 @@ void loop(){
       break;
     case Fault_State:
       RedFlash.flash(RED_PL);
+      GRN_PL = LOW;
       break;
     case Maint_State:
       GrnFlash.flash(GRN_PL);
@@ -661,8 +678,7 @@ void loop(){
     PanelMode = Maint_State;
   }else if(FAULTED){
     if(GrnFlash.isRunning()){
-        GrnFlash.stop();
-        GRN_PL = LOW;
+      GrnFlash.stop();
     }
     if(!RedFlash.isRunning()){
       RedFlash.start(LOW);
