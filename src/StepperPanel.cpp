@@ -32,7 +32,7 @@ bool IX07_ST = LOW;
 bool IX10_ST = LOW;
 
 //Define the OUTPUT pins.
-const int QX00 = 16; //should normally be 1 
+const int QX00 = 1; //should normally be 1 
 const int QX01 = 2; 
 const int QX02 = 3;
 const int QX03 = 4;
@@ -41,7 +41,7 @@ const int QX05 = 12;
 const int QX06 = 13;
 const int QX07 = 14;
 const int QX10 = 15;
-const int QX11 = 1; //should normally be 16
+const int QX11 = 16; //should normally be 16
 
 //Create states for the output pins.
 bool QX00_ST = LOW;
@@ -122,16 +122,18 @@ bool HORZ_CYC_COMP = LOW;
 bool HORZ_OUT_TRIG = LOW;
 bool VERT_OUT_TRIG = LOW;
 bool MaintVarSet = LOW;
+bool GoHome = LOW;
 
 //Program Flow Control Stuff
 bool CL_DLY = LOW;
 
 enum RunMode{
-	Boot_State,
-	Auto_State, 
-	Maint_State,
-	Fault_State, 
-	Shutdown_State
+	Boot_State, //0
+	Auto_State, //1 
+	Maint_State, //2
+	Fault_State,  //3
+	Shutdown_State, //4
+	Idle_State //5
 };
 
 RunMode PanelMode = Boot_State; //Setup for initial start
@@ -207,7 +209,7 @@ void RotateHorz(){
 		CL86T_EN_DLY.reset();
 		horzPulse.reset();
 	}
-	
+
 	if(STEPR_MV == LOW && HORZ_SIG_OUT_MEM == LOW && CL86T_Flag == LOW){ //Step 1 wait a set time before sending DIR signal to driver.
 		CL86T_EN_DLY.update(CL86T_Flag, HIGH, CL86T_EN, HIGH, 1000); //TimerON
 	}
@@ -322,73 +324,53 @@ void RotateVert(){
 	}
 }
 
+void VarReset(bool reset = false){
+
+	if(reset){
+		MaintVarSet = false;
+	}
+
+	if(!MaintVarSet){
+		RotateCycleTimer.stop();
+		OneSecTimer.stop();
+		CL86T_EN_DLY.reset();
+		vertPulse.reset();
+		horzPulse.reset();
+		STEPR_MV_MEM = LOW;
+		CL86T_Flag = LOW;
+		VERT_CYC_COMP = LOW;
+		VERT_SIG_OUT_MEM = LOW;
+		VERT_CALL_MEM = LOW;
+		HORZ_CYC_COMP = LOW;
+		HORZ_SIG_OUT_MEM = LOW;
+		HORZ_CALL_MEM = LOW;
+
+		MaintVarSet = HIGH;
+	}
+	
+}
+
 void MaintMode(){
-	if(MAINT_KEY && !MaintVarSet && !PWR_DN_TRGD){
-		if(!MaintTimer.isRunning()){
-			MaintTimer.start();
-		}
-		if(MaintTimer.isReady()){
-			MAINT_MODE = HIGH;
-			CL86T_EN = HIGH;
-			AUTO_MODE_OK = LOW;
-			horzPulse.reset();
-			HORZ_CYC_COMP = LOW;
-			HORZ_SIG_OUT_MEM = LOW;
-			vertPulse.reset();
-			VERT_CYC_COMP = LOW;
-			VERT_SIG_OUT_MEM = LOW;
-			CL86T_Flag = LOW;
-			RotateCycleTimer.stop();
-			OneSecTimer.stop();
-			CL86T_EN_DLY.reset();
-			STEPR_MV_MEM = LOW;
-			MaintVarSet = HIGH;
-			MaintTimer.stop();
-		}
-	}else if(!MAINT_KEY && MaintVarSet && !PWR_DN_TRGD){
-		MaintTimer.stop();
+	if(MAINT_KEY && !FAULTED){
+		VarReset();         //Runs ones from the reset rvaiable. 
+		MAINT_MODE = HIGH;
+	}else if(FAULTED){
+		PanelMode = Fault_State;
+		return;
+	}else if(!MAINT_KEY){
 		MaintVarSet = LOW;
+		MAINT_MODE = LOW;
 		PanelMode = Auto_State;
 		return;
-	}else if(MAINT_KEY && !MaintVarSet && PWR_DN_TRGD){ //If the going into maint mode after power down has been triggered.
-		if(!MaintTimer.isRunning()){
-			MaintTimer.start();
-		}else if(MaintTimer.isReady()){
-			CL86T_EN = HIGH;
-			AUTO_MODE_OK = LOW;
-			horzPulse.reset();
-			HORZ_CYC_COMP = LOW;
-			HORZ_SIG_OUT_MEM = LOW;
-			vertPulse.reset();
-			VERT_CYC_COMP = LOW;
-			VERT_SIG_OUT_MEM = LOW;
-			CL86T_Flag = LOW;
-			RotateCycleTimer.stop();
-			OneSecTimer.stop();
-			CL86T_EN_DLY.reset();
-			STEPR_MV_MEM = LOW;
-			MaintVarSet = HIGH;
-			SYS_RDY_MEM = LOW;
-			PWR_DN_PRP = LOW;
-			MaintTimer.stop();
-			if(!MaintTimer2.isRunning()){
-				MaintTimer2.start();
-			}
-		}
-	}else if(!MAINT_KEY && MaintVarSet && PWR_DN_TRGD){
-		MaintTimer.stop();
-		MaintTimer2.stop();
-		MaintVarSet = LOW;
-		PanelMode = Shutdown_State;
-		return;
-	}else if(MAINT_KEY && MaintVarSet && PWR_DN_TRGD && MaintTimer2.isReady()){ //Extra wait time to abort the shutdown process. This attempts to go back to auto after the statment runs. 
-		MaintTimer2.stop();
-		PWR_DN_TRGD = LOW;
-	}	
+	}
 }
 
 void AutoMode(){
 	if(!MAINT_KEY && !FAULTED){
+		if(!CL86T_EN){
+			CL86T_EN = HIGH;
+			delay(2000);
+		}
 		//System ready checks
 		if(SYS_RDY_IN && !PWR_DN_TRGD && !SEQ_STOP_IN && !RDY_PWR_DN){
 			AUTO_MODE_OK = HIGH;
@@ -400,8 +382,6 @@ void AutoMode(){
 			AUTO_MODE_OK = LOW;
 		}
 
-		// CREATE AN IS_BUSY FLAG
-		// If either memory routine is active, the system is locked into that call.
 		bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
 
 		if(!STP_PNL_FLT && AUTO_MODE_OK) {
@@ -410,16 +390,14 @@ void AutoMode(){
 			if(!isBusy) {
 				if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP) {
 					HORZ_CALL_MEM = HIGH;
-					VERT_CYC_COMP = LOW; // Prepare the opposite flag for next time
+					VERT_CYC_COMP = LOW; // Prep the opposite flag for next time
 				}
 				else if(VERT_CALL && !HORZ_CALL && !VERT_CYC_COMP) {
 					VERT_CALL_MEM = HIGH;
-					HORZ_CYC_COMP = LOW; // Prepare the opposite flag for next time
+					HORZ_CYC_COMP = LOW; // Prep the opposite flag for next time
 				}
 			}
 
-			// 2. RUN UNTIL COMPLETION
-			// Once a memory bit is HIGH, it owns the loop entirely until Step 6 clears it.
 			if(HORZ_CALL_MEM) {
 				RotateHorz();
 			} 
@@ -434,16 +412,15 @@ void AutoMode(){
 	}else if(FAULTED){
 		PanelMode = Fault_State;
 		return;
-	}else if(PWR_DN_TRGD){
+	}else if(PWR_DN_TRGD && HORZ_CYC_COMP){
 		PanelMode = Shutdown_State;
 		return;
 	}
 }
 
 void ShutdownInit(){
-	if(!HORZ_CYC_COMP && PWR_DN_TRGD){
-		RotateHorz();
-	}else if(HORZ_CYC_COMP && AUTO_MODE_OK && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
+	
+	if(HORZ_CYC_COMP && AUTO_MODE_OK && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
 		AUTO_MODE_OK = LOW;
 		SYS_RDY_MEM = LOW;
 		PWR_DN_PRP = HIGH;
@@ -453,10 +430,12 @@ void ShutdownInit(){
 	if(PWR_DN_PRP && PwrDownTimer.isReady()){
 		RDY_PWR_DN = HIGH;
 		PwrDownTimer.stop();
+		ShutdownWaitTimer.start();
+
 		while(!MAINT_KEY && RDY_PWR_DN){
 			readInputs();
 			delay(10);
-			ShutdownWaitTimer.start();
+			
 			if(ShutdownWaitTimer.isReady()){
 				STP_PNL_FLT = HIGH;
 				FAULTED = STP_PNL_FLT;
@@ -479,20 +458,23 @@ void ShutdownInit(){
 }
 
 void FaultMode(){
-	if(!MAINT_KEY && FAULTED){
-		AUTO_MODE_OK = LOW; //Drop auto when fault state happens. 
-	}else if(MAINT_KEY && FAULTED){
+	if(MAINT_KEY && FAULTED){
 		if(!FiveSecTimer.isRunning()){
-			FiveSecTimer.start();
-		}
+		AUTO_MODE_OK = LOW;
+		FiveSecTimer.start();
+	}
+
 		if(FiveSecTimer.isReady()){
-			FiveSecTimer.stop();
+			STP_PNL_FLT = LOW;
 			FAULTED = LOW;
 			PanelMode = Maint_State;
+			FiveSecTimer.stop();
 			return;
 		}
-	}else if(!MAINT_KEY && FAULTED && FiveSecTimer.isRunning()){ //Restart the timer if you removethe key too early. 
-		FiveSecTimer.stop(); 
+	}else if(!MAINT_KEY && FAULTED){
+		FiveSecTimer.stop();
+		PanelMode = Fault_State;
+		return;
 	}
 }
 
@@ -526,26 +508,41 @@ void loop(){
 	delay(10); //Scan time
 	readInputs(); //This should always be at the top.
 
-	switch (PanelMode)
-	{
-	case Boot_State: //boot mode
-		PLC2_RDY = HIGH;
-		bootUpEN();
-		break;
-	case Auto_State: //auto mode
-		AutoMode();
-		break;
-	case Maint_State: //maint mode
-		MaintMode();
-		break;
-	case Fault_State: //fault mode
-		FaultMode();
-		break;
-	case Shutdown_State: //shutdown
-		ShutdownInit();
-		break;
-	default:
-		break;
+	if(!MAINT_KEY && !FAULTED){
+		switch (PanelMode)
+		{
+		case Boot_State: //boot mode
+			PLC2_RDY = HIGH;
+			bootUpEN();
+			break;
+		case Auto_State: //auto mode
+			AutoMode();
+			break;
+		case Maint_State: //maint mode
+			MaintMode();
+			break;
+		case Fault_State: //fault mode
+			FaultMode();
+			break;
+		case Shutdown_State: //shutdown
+			ShutdownInit();
+			break;
+		case Idle_State:
+			readInputs();
+			break;
+		default:
+			break;
+		}
+	}else if(MAINT_KEY && !FAULTED){
+		PanelMode = Maint_State;
+	}else if(FAULTED){
+		PanelMode = Fault_State;
+	}else if(PWR_DN_TRGD && !HORZ_CYC_COMP){
+		PanelMode = Auto_State;
+	}
+
+	if(SEQ_STOP_IN && !SEQ_STOP){
+		SEQ_STOP = HIGH;
 	}
 
 	writeOutputs();
