@@ -32,8 +32,8 @@ bool IX07_ST = LOW;
 bool IX10_ST = LOW;
 
 //Define the OUTPUT pins.
-const int QX00 = 16;
-const int QX01 = 2;
+const int QX00 = 16; //should normally be 1 
+const int QX01 = 2; 
 const int QX02 = 3;
 const int QX03 = 4;
 const int QX04 = 5;
@@ -41,7 +41,7 @@ const int QX05 = 12;
 const int QX06 = 13;
 const int QX07 = 14;
 const int QX10 = 15;
-const int QX11 = 1;
+const int QX11 = 1; //should normally be 16
 
 //Create states for the output pins.
 bool QX00_ST = LOW;
