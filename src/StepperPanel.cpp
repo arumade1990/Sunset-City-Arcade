@@ -207,28 +207,34 @@ void RotateHorz(){
 		CL86T_EN_DLY.reset();
 		horzPulse.reset();
 	}
+	
 	if(STEPR_MV == LOW && HORZ_SIG_OUT_MEM == LOW && CL86T_Flag == LOW){ //Step 1 wait a set time before sending DIR signal to driver.
-		CL86T_EN_DLY.update(CL86T_Flag, HIGH, CL86T_EN, HIGH, 1000);
+		CL86T_EN_DLY.update(CL86T_Flag, HIGH, CL86T_EN, HIGH, 1000); //TimerON
 	}
+
 	if(CL86T_Flag == HIGH){                                              //Step 2 Once the wait is done, send the rotate command as a set pulse.
-		horzPulse.update(HORZ_SIG_OUT, HIGH, CL86T_Flag, HIGH, 1000);
+		horzPulse.update(HORZ_SIG_OUT, HIGH, CL86T_Flag, HIGH, 1000); //OneShotPulse
 	}     
 		if(HORZ_SIG_OUT == HIGH){                                        //Step 3 Remember that the pulse was sent. 
 			HORZ_SIG_OUT_MEM = HIGH;  
 		}
+
 	if(STEPR_MV == HIGH && HORZ_SIG_OUT_MEM == HIGH){                    //Step 4 Once the stepper movement is detected, remember that it was moving. 
 		STEPR_MV_MEM = HIGH;
 	}
+
 	if(STEPR_MV == LOW && STEPR_MV_MEM == HIGH && HORZ_SIG_OUT == LOW && HORZ_SIG_OUT_MEM == HIGH){  //Step 5 If the stepper moved and the movement command happened,                                                                                               
 		if(!OneSecTimer.isRunning()){                                                              //check if the movement happened and completed.
 			OneSecTimer.start();
 		}
 	}
+
 	if(OneSecTimer.isReady()){
 		OneSecTimer.stop();
 		HORZ_CYC_COMP = HIGH;
 		VERT_CYC_COMP = LOW;
 	}
+
 	if(HORZ_CYC_COMP == HIGH){            //Step 6 Stop the cycle timer. 
 		RotateCycleTimer.stop();
 		STEPR_MV_MEM = LOW;
@@ -237,7 +243,9 @@ void RotateHorz(){
 		CL86T_Flag = LOW;
 		CL86T_EN_DLY.reset();
 		horzPulse.reset();
-	}else if(RotateCycleTimer.isReady()){ //Step 0 If the cycle timer ever finishes, something is wrong. 
+	}
+
+	if(RotateCycleTimer.isReady()){ //Step 0 If the cycle timer ever finishes, something is wrong. 
 		STP_PNL_FLT = HIGH;
 		RotateCycleTimer.stop();
 		OneSecTimer.stop();
@@ -260,28 +268,34 @@ void RotateVert(){
 		CL86T_EN_DLY.reset();
 		vertPulse.reset();
 	}
+
 	if(STEPR_MV == LOW && VERT_SIG_OUT_MEM == LOW && CL86T_Flag == LOW){ //Step 1 wait a set time before sending DIR signal to driver.
 		CL86T_EN_DLY.update(CL86T_Flag, HIGH, CL86T_EN, HIGH, 1000);
 	}
+
 	if(CL86T_Flag == HIGH){                                              //Step 2 Once the wait is done, send the rotate command as a set pulse pulse.
 		vertPulse.update(VERT_SIG_OUT, HIGH, CL86T_Flag, HIGH, 1000);
 	}     
 		if(VERT_SIG_OUT == HIGH){                                        //Step 3 Remember that the pulse was sent. 
 			VERT_SIG_OUT_MEM = HIGH;  
 		}
+
 	if(STEPR_MV == HIGH && VERT_SIG_OUT_MEM == HIGH){                    //Step 4 Once the stepper movement is detected, remember that it was moving. 
 		STEPR_MV_MEM = HIGH;
 	}
+
 	if(STEPR_MV == LOW && STEPR_MV_MEM == HIGH && VERT_SIG_OUT == LOW && VERT_SIG_OUT_MEM == HIGH){  //Step 5 If the stepper moved and the movement command happened,  
 		if(!OneSecTimer.isRunning()){                                                              //check if the movement happened and completed.
 			OneSecTimer.start();
 		}
 	}
+
 	if(OneSecTimer.isReady()){
 		OneSecTimer.stop();
 		HORZ_CYC_COMP = LOW;
 		VERT_CYC_COMP = HIGH;
 	}
+
 	if(VERT_CYC_COMP == HIGH){            //Step 6 Stop the cycle timer. 
 		RotateCycleTimer.stop();
 		OneSecTimer.stop();
@@ -293,7 +307,9 @@ void RotateVert(){
 		vertPulse.reset();
 		return;
 
-	}else if(RotateCycleTimer.isReady()){ //Step 0 If the cycle timer ever finishes, something is wrong. 
+	}
+
+	if(RotateCycleTimer.isReady()){ //Step 0 If the cycle timer ever finishes, something is wrong. 
 		STP_PNL_FLT = HIGH;
 		RotateCycleTimer.stop();
 		OneSecTimer.stop();
