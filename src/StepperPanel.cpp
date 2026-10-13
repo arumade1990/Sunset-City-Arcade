@@ -1,6 +1,13 @@
-#include <Arduino.h>
 //This code is for the Stepper Panel for the Sunset City Arcade Project
 //Andy Rumade - 9/8/26
+
+#include <Arduino.h>
+#include <Timer.h>
+#include <ToggleFlipflop.h>
+#include <Flasher.h>
+#include <OneShotPulse.h>
+#include <TimerON.h>
+#include <TimerOFF.h>
 
 //Define the INPUT pins.
 const int IX00 = 17;
@@ -25,7 +32,7 @@ bool IX07_ST = LOW;
 bool IX10_ST = LOW;
 
 //Define the OUTPUT pins.
-const int QX00 = 1;
+const int QX00 = 16;
 const int QX01 = 2;
 const int QX02 = 3;
 const int QX03 = 4;
@@ -34,7 +41,7 @@ const int QX05 = 12;
 const int QX06 = 13;
 const int QX07 = 14;
 const int QX10 = 15;
-const int QX11 = 16;
+const int QX11 = 1;
 
 //Create states for the output pins.
 bool QX00_ST = LOW;
@@ -58,206 +65,6 @@ const int IW03 = 39;
 //Define the ANALOG OUTPUT pins.
 const int QW00 = 25;
 const int QW01 = 26;
-
-//Create a timer class for a reusable timer setup. 
-class Timer{
-  private:
-    unsigned long previousMillis;
-    unsigned long interval;
-    bool running;
-
-  public:
-    Timer(unsigned long currentInterval) {
-      interval = currentInterval;
-      previousMillis = 0;
-      running = false;
-    }
-
-    // Start or restart the timer
-    void start() {
-      previousMillis = millis();
-      running = true;
-    }
-	
-	bool isRunning(){
-		if(running == true){
-			return true;
-		}else{
-			return false;
-		}
-	}
-
-    // Stop the timer
-    void stop() {
-      running = false;
-    }
-
-    // Change interval dynamically
-    void setInterval(unsigned long newInterval) {
-      interval = newInterval;
-    }
-
-    // Check if the timer has expired
-    bool isReady() {
-      if (!running) return false;
-      
-      unsigned long currentMillis = millis();
-      if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis; // Reset for repeating timer
-        return true;
-      }
-      return false;
-    }
-	//Once ready, it stays ready until started again or reset. 
-	bool oneShotReady(){
-	  if (!running) return false;
-
-	  unsigned long currentMillis = millis();
-	  if (currentMillis - previousMillis >= interval){
-		return true;
-	  }
-	  return false;
-	}
-	
-	bool reset(){
-		unsigned long previousMillis = millis();
-		stop();
-		return true;
-	}
-};
-
-class OneShotPulse{
-  private:
-    unsigned long startTime;
-    bool isRunning = false;
-    bool lastTriggerState = false;
-	bool triggerActivated = false;
-
-  public:
-    void update(bool &pulsedVar, bool pulsedState, bool trigger, bool trigState, unsigned long duration) {
-      // Detect the rising/falling edge of the trigger
-      triggerActivated = (trigger == trigState && lastTriggerState != trigState);
-      lastTriggerState = trigger; // Keep track of physical state changes
-	  /*bool triggerActivated;
-	  if(trigger == trigState){
-		triggerActivated = true;
-	  }else{
-		triggerActivated = false;
-	  }*/
-      // ONLY start if a new trigger happens AND the timer is not already running
-      if (triggerActivated && !isRunning) {
-        pulsedVar = pulsedState;
-        startTime = millis();
-        isRunning = true;
-        //Serial.println("Timer Started - Inputs now locked out.");
-      }
-
-      // Check the timer completely independently of the physical trigger state
-      if (isRunning) {
-        if (millis() - startTime >= duration) {
-          pulsedVar = !pulsedState;
-          isRunning = false;
-          //Serial.println("Timer Stopped - Inputs unlocked.");
-        }
-      }
-    }
-
-	void reset(){
-		isRunning = false;
-		triggerActivated = false;
-		lastTriggerState = false;
-	}
-};
-
-class TimerON{
-  private:
-    unsigned long startTime;
-    bool isRunning = false;
-    bool lastTriggerState = false;
-	bool triggerActivated = false;
-
-  public:
-    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
-      /*// Detect the rising/falling edge of the trigger
-      bool triggerActivated = (trigger == trigState && lastTriggerState != trigState);
-      lastTriggerState = trigger; // Keep track of physical state changes*/
-
-	  //bool triggerActivated;
-	  if(trigger == trigState){
-		triggerActivated = true;
-	  }else{
-		triggerActivated = false;
-	  }
-
-      // ONLY start if a new trigger happens AND the timer is not already running
-      if (triggerActivated && !isRunning) {
-        //timedVar = timedState;
-        startTime = millis();
-        isRunning = true;
-        //Serial.println("Timer Started - Waiting for set time.");
-      }
-
-      // Check the timer completely independently of the physical trigger state
-      if (isRunning) {
-        if (millis() - startTime >= duration) {
-          timedVar = timedState;
-          isRunning = false;
-          //Serial.println("Timer Stopped - Output ON");
-        }
-      }
-    }
-
-	void reset(){
-		isRunning = false;
-		lastTriggerState = false;
-		triggerActivated = false;
-	}
-};
-
-class TimerOFF{
-  private:
-    unsigned long startTime;
-    bool isRunning = false;
-    bool lastTriggerState = false;
-    bool trigWasPressed = false;
-
-  public:
-    void update(bool &timedVar, bool timedState, bool trigger, bool trigState, unsigned long duration) {
-
-      bool triggerPressed;
-      
-      if (trigger == trigState){
-        triggerPressed = true;
-      }else{
-        triggerPressed = false;
-      }
-
-      if (triggerPressed == true) {
-        timedVar = timedState;
-        trigWasPressed = true;
-        //Serial.println("Trigger activated. Release to start timer.");
-      }
-      if(triggerPressed == false && trigWasPressed == true && !isRunning){
-        startTime = millis();
-        isRunning = true;
-        //Serial.println("Timer Started - Waiting for set time. Output ON");
-      }
-
-      if (isRunning) {
-        if (millis() - startTime >= duration) {
-          timedVar = !timedState;
-          trigWasPressed = false;
-          isRunning = false;
-          //Serial.println("Timer Stopped - Output Off");
-        }
-      }
-    }
-
-	void reset(){
-		isRunning = false;
-		lastTriggerState = false;
-	}
-};
 
 //Create general timer objects.
 Timer HalfSecTimer(500);
