@@ -77,6 +77,7 @@ Timer ShutdownWaitTimer(180000);
 Timer VarTimer(1000);
 Timer MaintTimer(5000);
 Timer MaintTimer2(5000);
+Timer CL86T_Reset_Timer(5000);
 
 //Create the Special timers
 OneShotPulse horzPulse;
@@ -366,11 +367,9 @@ void MaintMode(){
 }
 
 void AutoMode(){
-	if(!MAINT_KEY && !FAULTED){
-		if(!CL86T_EN){
-			CL86T_EN = HIGH;
-			delay(2000);
-		}
+
+	if(!MAINT_KEY && !FAULTED && CL86T_EN){
+		
 		//System ready checks
 		if(SYS_RDY_IN && !PWR_DN_TRGD && !SEQ_STOP_IN && !RDY_PWR_DN){
 			AUTO_MODE_OK = HIGH;
@@ -414,6 +413,20 @@ void AutoMode(){
 		return;
 	}else if(SEQ_STOP){
 		return;
+	}else if(!CL86T_EN){
+		CL86T_EN = HIGH;
+		if(!CL86T_Reset_Timer.isRunning()){
+			CL86T_Reset_Timer.start();
+		}
+		while(CL86T_Reset_Timer.isRunning()){
+			readInputs();
+			if(CL86T_Reset_Timer.isReady()){
+				CL86T_Reset_Timer.stop();
+				break;
+			}
+			//check the inputs for the screen rotate here and remember the data. 
+			writeOutputs();
+		}
 	}
 }
 
@@ -442,7 +455,7 @@ void HomeMode(){
 	}
 	
 	if(!VarTimer.isRunning() && !HORZ_CALL_MEM){
-		VarTimer.setInterval(15000);
+		VarTimer.setInterval(30000);
 		VarTimer.start();
 	}else if(HORZ_CALL_MEM){
 		VarTimer.stop();
