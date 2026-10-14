@@ -368,6 +368,8 @@ void MaintMode(){
 
 void AutoMode(){
 
+	bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
+
 	if(!MAINT_KEY && !FAULTED && CL86T_EN){
 		
 		//System ready checks
@@ -380,8 +382,6 @@ void AutoMode(){
 		}else{
 			AUTO_MODE_OK = LOW;
 		}
-
-		bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
 
 		if(!STP_PNL_FLT && AUTO_MODE_OK) {
 			
@@ -424,7 +424,20 @@ void AutoMode(){
 				CL86T_Reset_Timer.stop();
 				break;
 			}
-			//check the inputs for the screen rotate here and remember the data. 
+
+			isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
+
+			if(!isBusy) {
+				if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP) {
+					HORZ_CALL_MEM = HIGH;
+					VERT_CYC_COMP = LOW; // Prep the opposite flag for next time
+				}
+				else if(VERT_CALL && !HORZ_CALL && !VERT_CYC_COMP) {
+					VERT_CALL_MEM = HIGH;
+					HORZ_CYC_COMP = LOW; // Prep the opposite flag for next time
+				}
+			}
+
 			writeOutputs();
 		}
 	}
