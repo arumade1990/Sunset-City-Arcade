@@ -91,8 +91,8 @@ int PwrTries = 0;
 //Instantiation of class objects
 
 //Timers
-Timer PcPwrCycleTimer(30000); //5 minutes
-Timer PcPwrBtnCycleTimer(10000); //10 minutes
+Timer PcPwrCycleTimer(300000); //5 minutes
+Timer PcPwrBtnCycleTimer(600000); //10 minutes
 Timer PcPwrBtnDly(2000);
 Timer ScreenAudioDly(5000);
 Timer PnlShutdownCycleTime(30000);
@@ -180,6 +180,10 @@ void PcPwrOff(){
 
   static bool shutdownConfirm = LOW;
   bool CycleTimeout = PnlShutdownCycleTime.isReady();
+
+  if(!SEQ_STOP_MEM){
+    SEQ_STOP_MEM = HIGH;
+  }
 
   if(PwrTries > 0){
     if(SHUTDOWN_RDY){
@@ -387,7 +391,7 @@ void setup(){
 	pinMode(QX11, OUTPUT);
 
   RedFlash.start(LOW);
-  GrnFlash.start(LOW, 5);
+  GrnFlash.start(LOW);
 
 }
 

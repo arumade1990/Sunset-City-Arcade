@@ -307,11 +307,11 @@
     {
       "type": "wokwi-text",
       "id": "text1",
-      "top": -38.4,
-      "left": -249.6,
+      "top": -28.8,
+      "left": -172.8,
       "attrs": { "text": "IX00" }
     },
-    { "type": "wokwi-text", "id": "text2", "top": -38.4, "left": 96, "attrs": { "text": "IX05" } },
+    { "type": "wokwi-text", "id": "text2", "top": -28.8, "left": 96, "attrs": { "text": "IX05" } },
     { "type": "wokwi-dip-switch-8", "id": "sw1", "top": -185.7, "left": 30.3, "attrs": {} },
     {
       "type": "wokwi-slide-switch",
@@ -326,71 +326,102 @@
       "id": "text3",
       "top": -48,
       "left": 806.4,
-      "attrs": { "text": "QX00 SEQ START MEM" }
+      "attrs": { "text": "QX00 CL86T ENABLE" }
     },
     {
       "type": "wokwi-text",
       "id": "text4",
       "top": 307.2,
       "left": 806.4,
-      "attrs": { "text": "QX11 DSP AUD PWR" }
+      "attrs": { "text": "QX011 SPARE" }
     },
     {
       "type": "wokwi-text",
       "id": "text5",
       "top": -9.6,
       "left": 806.4,
-      "attrs": { "text": "QX01 SEQ STOP MEM" }
+      "attrs": { "text": "QX01 MAINT MODE" }
     },
     {
       "type": "wokwi-text",
       "id": "text6",
       "top": 28.8,
       "left": 806.4,
-      "attrs": { "text": "QX02 PLC1 RDY" }
+      "attrs": { "text": "QX02 READY FOR PWR DOWN" }
     },
     {
       "type": "wokwi-text",
       "id": "text7",
       "top": 67.2,
       "left": 806.4,
-      "attrs": { "text": "QX03 GRN PL" }
+      "attrs": { "text": "QX03 SYS RDY/PC RUN" }
     },
     {
       "type": "wokwi-text",
       "id": "text8",
       "top": 115.2,
       "left": 806.4,
-      "attrs": { "text": "QX04 RED PL" }
+      "attrs": { "text": "QX04 STEPPER PANEL FLT" }
     },
     {
       "type": "wokwi-text",
       "id": "text9",
       "top": 153.6,
       "left": 806.4,
-      "attrs": { "text": "QX05 MC 2 PWR" }
+      "attrs": { "text": "QX05 SEQ STOP" }
     },
     {
       "type": "wokwi-text",
       "id": "text10",
       "top": 192,
       "left": 806.4,
-      "attrs": { "text": "QX06 SYS RDY OUT" }
+      "attrs": { "text": "QX06  PLC2 READY" }
     },
     {
       "type": "wokwi-text",
       "id": "text11",
       "top": 230.4,
       "left": 806.4,
-      "attrs": { "text": "QX07 TOTAL PWR OFF" }
+      "attrs": { "text": "QX07 VERT SIG OUT TO SMGP 5" }
     },
     {
       "type": "wokwi-text",
       "id": "text12",
       "top": 268.8,
       "left": 806.4,
-      "attrs": { "text": "QX10 PC PWR PLS" }
-    }
+      "attrs": { "text": "QX010 HORZ SIG OUT TO  SMGP 6" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text13",
+      "top": 0,
+      "left": -172.8,
+      "attrs": { "text": "IX01" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text14",
+      "top": 28.8,
+      "left": -172.8,
+      "attrs": { "text": "IX02" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text15",
+      "top": 57.6,
+      "left": -172.8,
+      "attrs": { "text": "IX03" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text16",
+      "top": 86.4,
+      "left": -172.8,
+      "attrs": { "text": "IX04" }
+    },
+    { "type": "wokwi-text", "id": "text17", "top": 0, "left": 96, "attrs": { "text": "IX06" } },
+    { "type": "wokwi-text", "id": "text18", "top": 28.8, "left": 96, "attrs": { "text": "IX07" } },
+    { "type": "wokwi-text", "id": "text19", "top": 57.6, "left": 96, "attrs": { "text": "IX10" } }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -517,6 +548,11 @@
     [ "sw1:6b", "btn6:2.r", "green", [ "v-76.5", "h-57.6" ] ],
     [ "btn7:2.r", "sw1:7b", "green", [ "h0.8", "v-287.6", "h76.8" ] ],
     [ "sw1:8b", "btn8:2.r", "green", [ "h0", "v-95.7", "h-86.4" ] ],
+    [ "bb4:17b.h", "bb4:14b.h", "red", [ "h0" ] ],
+    [ "btn9:2.r", "sw2:3", "green", [ "h116", "v-153.4" ] ],
+    [ "sw2:2", "bb4:17b.j", "red", [ "h0" ] ],
+    [ "led1:C", "bb3:1t.e", "green", [ "v0" ] ],
+    [ "led2:C", "bb3:5t.e", "green", [ "v0" ] ],
     [ "r1:1", "bb1:30t.d", "", [ "$bb" ] ],
     [ "r1:2", "bb1:tn.25", "", [ "$bb" ] ],
     [ "r2:1", "bb1:29t.d", "", [ "$bb" ] ],
@@ -535,10 +571,38 @@
     [ "r8:2", "bb1:tn.18", "", [ "$bb" ] ],
     [ "r9:1", "bb1:21t.d", "", [ "$bb" ] ],
     [ "r9:2", "bb1:tn.17", "", [ "$bb" ] ],
+    [ "btn1:1.l", "bb1:1b.i", "", [ "$bb" ] ],
+    [ "btn1:2.l", "bb1:3b.i", "", [ "$bb" ] ],
+    [ "btn1:1.r", "bb1:1b.f", "", [ "$bb" ] ],
+    [ "btn1:2.r", "bb1:3b.f", "", [ "$bb" ] ],
+    [ "btn2:1.l", "bb1:4b.i", "", [ "$bb" ] ],
+    [ "btn2:2.l", "bb1:6b.i", "", [ "$bb" ] ],
+    [ "btn2:1.r", "bb1:4b.f", "", [ "$bb" ] ],
+    [ "btn2:2.r", "bb1:6b.f", "", [ "$bb" ] ],
     [ "btn3:1.l", "bb1:7b.i", "", [ "$bb" ] ],
     [ "btn3:2.l", "bb1:9b.i", "", [ "$bb" ] ],
     [ "btn3:1.r", "bb1:7b.f", "", [ "$bb" ] ],
     [ "btn3:2.r", "bb1:9b.f", "", [ "$bb" ] ],
+    [ "btn4:1.l", "bb1:10b.i", "", [ "$bb" ] ],
+    [ "btn4:2.l", "bb1:12b.i", "", [ "$bb" ] ],
+    [ "btn4:1.r", "bb1:10b.f", "", [ "$bb" ] ],
+    [ "btn4:2.r", "bb1:12b.f", "", [ "$bb" ] ],
+    [ "btn5:1.l", "bb1:13b.i", "", [ "$bb" ] ],
+    [ "btn5:2.l", "bb1:15b.i", "", [ "$bb" ] ],
+    [ "btn5:1.r", "bb1:13b.f", "", [ "$bb" ] ],
+    [ "btn5:2.r", "bb1:15b.f", "", [ "$bb" ] ],
+    [ "btn6:1.l", "bb1:1t.e", "", [ "$bb" ] ],
+    [ "btn6:2.l", "bb1:3t.e", "", [ "$bb" ] ],
+    [ "btn6:1.r", "bb1:1t.b", "", [ "$bb" ] ],
+    [ "btn6:2.r", "bb1:3t.b", "", [ "$bb" ] ],
+    [ "btn7:1.l", "bb1:4t.e", "", [ "$bb" ] ],
+    [ "btn7:2.l", "bb1:6t.e", "", [ "$bb" ] ],
+    [ "btn7:1.r", "bb1:4t.b", "", [ "$bb" ] ],
+    [ "btn7:2.r", "bb1:6t.b", "", [ "$bb" ] ],
+    [ "btn8:1.l", "bb1:7t.e", "", [ "$bb" ] ],
+    [ "btn8:2.l", "bb1:9t.e", "", [ "$bb" ] ],
+    [ "btn8:1.r", "bb1:7t.b", "", [ "$bb" ] ],
+    [ "btn8:2.r", "bb1:9t.b", "", [ "$bb" ] ],
     [ "btn9:1.l", "bb1:10t.e", "", [ "$bb" ] ],
     [ "btn9:2.l", "bb1:12t.e", "", [ "$bb" ] ],
     [ "btn9:1.r", "bb1:10t.b", "", [ "$bb" ] ],
@@ -563,49 +627,16 @@
     [ "r18:2", "bb2:22t.e", "", [ "$bb" ] ],
     [ "r19:1", "bb2:21b.i", "", [ "$bb" ] ],
     [ "r19:2", "bb2:21t.e", "", [ "$bb" ] ],
-    [ "led5:A", "bb3:17b.f", "", [ "$bb" ] ],
-    [ "led8:A", "bb3:29b.f", "", [ "$bb" ] ],
-    [ "bb4:17b.h", "bb4:14b.h", "red", [ "h0" ] ],
-    [ "btn9:2.r", "sw2:3", "green", [ "h116", "v-153.4" ] ],
-    [ "sw2:2", "bb4:17b.j", "red", [ "h0" ] ],
-    [ "led4:A", "bb3:13b.f", "", [ "$bb" ] ],
+    [ "led1:A", "bb3:1b.f", "", [ "$bb" ] ],
+    [ "led2:A", "bb3:5b.f", "", [ "$bb" ] ],
     [ "led3:A", "bb3:9b.f", "", [ "$bb" ] ],
+    [ "led4:A", "bb3:13b.f", "", [ "$bb" ] ],
+    [ "led5:A", "bb3:17b.f", "", [ "$bb" ] ],
     [ "led6:A", "bb3:21b.f", "", [ "$bb" ] ],
     [ "led7:A", "bb3:25b.f", "", [ "$bb" ] ],
-    [ "led2:A", "bb3:5b.f", "", [ "$bb" ] ],
-    [ "led1:A", "bb3:1b.f", "", [ "$bb" ] ],
-    [ "led1:C", "bb3:1t.e", "green", [ "v0" ] ],
-    [ "led2:C", "bb3:5t.e", "green", [ "v0" ] ],
+    [ "led8:A", "bb3:29b.f", "", [ "$bb" ] ],
     [ "led9:A", "bb3:33b.f", "", [ "$bb" ] ],
-    [ "led10:A", "bb3:38b.f", "", [ "$bb" ] ],
-    [ "btn5:1.l", "bb1:13b.i", "", [ "$bb" ] ],
-    [ "btn5:2.l", "bb1:15b.i", "", [ "$bb" ] ],
-    [ "btn5:1.r", "bb1:13b.f", "", [ "$bb" ] ],
-    [ "btn5:2.r", "bb1:15b.f", "", [ "$bb" ] ],
-    [ "btn7:1.l", "bb1:4t.e", "", [ "$bb" ] ],
-    [ "btn7:2.l", "bb1:6t.e", "", [ "$bb" ] ],
-    [ "btn7:1.r", "bb1:4t.b", "", [ "$bb" ] ],
-    [ "btn7:2.r", "bb1:6t.b", "", [ "$bb" ] ],
-    [ "btn8:1.l", "bb1:7t.e", "", [ "$bb" ] ],
-    [ "btn8:2.l", "bb1:9t.e", "", [ "$bb" ] ],
-    [ "btn8:1.r", "bb1:7t.b", "", [ "$bb" ] ],
-    [ "btn8:2.r", "bb1:9t.b", "", [ "$bb" ] ],
-    [ "btn6:1.l", "bb1:1t.e", "", [ "$bb" ] ],
-    [ "btn6:2.l", "bb1:3t.e", "", [ "$bb" ] ],
-    [ "btn6:1.r", "bb1:1t.b", "", [ "$bb" ] ],
-    [ "btn6:2.r", "bb1:3t.b", "", [ "$bb" ] ],
-    [ "btn1:1.l", "bb1:1b.i", "", [ "$bb" ] ],
-    [ "btn1:2.l", "bb1:3b.i", "", [ "$bb" ] ],
-    [ "btn1:1.r", "bb1:1b.f", "", [ "$bb" ] ],
-    [ "btn1:2.r", "bb1:3b.f", "", [ "$bb" ] ],
-    [ "btn2:1.l", "bb1:4b.i", "", [ "$bb" ] ],
-    [ "btn2:2.l", "bb1:6b.i", "", [ "$bb" ] ],
-    [ "btn2:1.r", "bb1:4b.f", "", [ "$bb" ] ],
-    [ "btn2:2.r", "bb1:6b.f", "", [ "$bb" ] ],
-    [ "btn4:1.l", "bb1:10b.i", "", [ "$bb" ] ],
-    [ "btn4:2.l", "bb1:12b.i", "", [ "$bb" ] ],
-    [ "btn4:1.r", "bb1:10b.f", "", [ "$bb" ] ],
-    [ "btn4:2.r", "bb1:12b.f", "", [ "$bb" ] ]
+    [ "led10:A", "bb3:38b.f", "", [ "$bb" ] ]
   ],
   "dependencies": {}
 }

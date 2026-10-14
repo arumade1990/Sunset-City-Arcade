@@ -133,7 +133,7 @@ enum RunMode{
 	Maint_State, //2
 	Fault_State,  //3
 	Shutdown_State, //4
-	Idle_State //5
+	Home_State //5
 };
 
 RunMode PanelMode = Boot_State; //Setup for initial start
@@ -177,7 +177,7 @@ void writeOutputs(){
 	QX00_ST = CL86T_EN;
 	QX01_ST = MAINT_MODE;
 	QX02_ST = RDY_PWR_DN;
-	QX03_ST = SYS_RDY;
+	QX03_ST = SYS_RDY_MEM;
     QX04_ST = STP_PNL_FLT;	
 	QX05_ST = SEQ_STOP;
 	QX06_ST = PLC2_RDY;
@@ -412,7 +412,48 @@ void AutoMode(){
 	}else if(FAULTED){
 		PanelMode = Fault_State;
 		return;
-	}else if(PWR_DN_TRGD && HORZ_CYC_COMP){
+	}else if(SEQ_STOP){
+		return;
+	}
+}
+
+void HomeMode(){
+	bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
+
+	if(PWR_DN_TRGD && !HORZ_CYC_COMP){
+		// 1. CHOOSE AN ACTION (Only allowed if the system is NOT busy!)
+		if(!isBusy){
+			if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP){
+				HORZ_CALL_MEM = HIGH;
+				VERT_CYC_COMP = LOW; // Prep the opposite flag for next time
+			}
+			else if(VERT_CALL && !HORZ_CALL && !VERT_CYC_COMP){
+				VERT_CALL_MEM = HIGH;
+				HORZ_CYC_COMP = LOW; // Prep the opposite flag for next time
+			}
+		}
+
+		if(HORZ_CALL_MEM){
+			RotateHorz();
+		} 
+		else if(VERT_CALL_MEM){
+			RotateVert();
+		}
+	}
+	
+	if(!VarTimer.isRunning() && !HORZ_CALL_MEM){
+		VarTimer.setInterval(15000);
+		VarTimer.start();
+	}else if(HORZ_CALL_MEM){
+		VarTimer.stop();
+	}
+
+	if(VarTimer.isReady()){
+		HORZ_CALL_MEM = HIGH;
+	}
+
+	if(HORZ_CYC_COMP){
+		VarTimer.stop();
 		PanelMode = Shutdown_State;
 		return;
 	}
@@ -420,48 +461,35 @@ void AutoMode(){
 
 void ShutdownInit(){
 	
-	if(HORZ_CYC_COMP && AUTO_MODE_OK && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
-		AUTO_MODE_OK = LOW;
+	if(HORZ_CYC_COMP && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
 		SYS_RDY_MEM = LOW;
 		PWR_DN_PRP = HIGH;
 		PwrDownTimer.start();
 	}
 	
-	if(PWR_DN_PRP && PwrDownTimer.isReady()){
+	if(PWR_DN_PRP && PwrDownTimer.isReady() && !ShutdownWaitTimer.isRunning()){
 		RDY_PWR_DN = HIGH;
 		PwrDownTimer.stop();
 		ShutdownWaitTimer.start();
-
-		while(!MAINT_KEY && RDY_PWR_DN){
-			readInputs();
-			delay(10);
-			
-			if(ShutdownWaitTimer.isReady()){
-				STP_PNL_FLT = HIGH;
-				FAULTED = STP_PNL_FLT;
-				ShutdownWaitTimer.stop();
-				PanelMode = Fault_State;
-				writeOutputs();
-				break;
-			}else if(MAINT_KEY){
-				STP_PNL_FLT = LOW;
-				PWR_DN_PRP = LOW;
-				FAULTED = STP_PNL_FLT;
-				ShutdownWaitTimer.stop();
-				PanelMode = Maint_State;
-				writeOutputs();
-				break;
-			}
-			writeOutputs();
-		} 
 	}
+
+	if(!MAINT_KEY && RDY_PWR_DN){
+			
+		if(ShutdownWaitTimer.isReady()){
+			STP_PNL_FLT = HIGH;
+			FAULTED = STP_PNL_FLT;
+			ShutdownWaitTimer.stop();
+			PanelMode = Fault_State;
+			return;
+		}
+	} 
 }
 
 void FaultMode(){
 	if(MAINT_KEY && FAULTED){
 		if(!FiveSecTimer.isRunning()){
-		AUTO_MODE_OK = LOW;
-		FiveSecTimer.start();
+			AUTO_MODE_OK = LOW;
+			FiveSecTimer.start();
 	}
 
 		if(FiveSecTimer.isReady()){
@@ -527,8 +555,8 @@ void loop(){
 		case Shutdown_State: //shutdown
 			ShutdownInit();
 			break;
-		case Idle_State:
-			readInputs();
+		case Home_State:
+			HomeMode(); //In-between mode to ensure the screen gets to horizontal position before shutting down. 
 			break;
 		default:
 			break;
@@ -537,13 +565,18 @@ void loop(){
 		PanelMode = Maint_State;
 	}else if(FAULTED){
 		PanelMode = Fault_State;
-	}else if(PWR_DN_TRGD && !HORZ_CYC_COMP){
-		PanelMode = Auto_State;
+	}
+	
+	if(SEQ_STOP && !HORZ_CYC_COMP){
+		PanelMode = Home_State;
+	}else if(SEQ_STOP && HORZ_CYC_COMP){
+		PanelMode = Shutdown_State;
 	}
 
 	if(SEQ_STOP_IN && !SEQ_STOP){
 		SEQ_STOP = HIGH;
 	}
+	SPARE1 = AUTO_MODE_OK;
 
 	writeOutputs();
 }
