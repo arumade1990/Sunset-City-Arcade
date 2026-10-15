@@ -332,6 +332,7 @@ void VarReset(bool reset = false){
 	}
 
 	if(!MaintVarSet){
+		AUTO_MODE_OK = LOW;
 		RotateCycleTimer.stop();
 		OneSecTimer.stop();
 		CL86T_EN_DLY.reset();
@@ -347,13 +348,14 @@ void VarReset(bool reset = false){
 		HORZ_CALL_MEM = LOW;
 
 		MaintVarSet = HIGH;
+		Serial.println("Vars reset");
 	}
 	
 }
 
 void MaintMode(){
 	if(MAINT_KEY && !FAULTED){
-		VarReset();         //Runs ones from the reset rvaiable. 
+		VarReset();         //Runs once from the reset variable. 
 		MAINT_MODE = HIGH;
 	}else if(FAULTED){
 		PanelMode = Fault_State;
@@ -406,6 +408,7 @@ void AutoMode(){
 		}
 
 	}else if(MAINT_KEY){
+		Serial.println("maint key detected from auto mode");
 		PanelMode = Maint_State;
 		return;
 	}else if(FAULTED){
@@ -532,6 +535,33 @@ void FaultMode(){
 	}
 }
 
+void GateChecks(){
+
+	if(STP_PNL_FLT){
+		FAULTED = HIGH;
+	}
+
+	if(FAULTED){
+		PanelMode = Fault_State;
+	}
+
+	if(MAINT_KEY && !FAULTED){
+		Serial.println("Maint Key detected.");
+		PanelMode = Maint_State;
+	}
+	
+	if(SEQ_STOP && !HORZ_CYC_COMP){
+		Serial.println("Seq_Stop detected.");
+		PanelMode = Home_State;
+	}else if(SEQ_STOP && HORZ_CYC_COMP){
+		PanelMode = Shutdown_State;
+	}
+
+	if(SEQ_STOP_IN && !SEQ_STOP){
+		SEQ_STOP = HIGH;
+	}
+}
+
 void setup(){
   //Set the input pins as inputs. The boards use 10k pull down resistors.
   pinMode(IX00, INPUT); //VERTICAL CALL
@@ -556,53 +586,53 @@ void setup(){
   pinMode(QX10, OUTPUT); //HORIZONTAL SIGNAL OUT TO SMGP 6
   pinMode(QX11, OUTPUT); //SPARE
   
-}
+  Serial.begin(115200);
+
+  while(!Serial){
+	delay(100);
+	}
+
+  Serial.println("Serial Initialized.");
+	
+  }
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++LOOP BEGIN
 void loop(){
 	delay(10); //Scan time
 	readInputs(); //This should always be at the top.
 
-	if(!MAINT_KEY && !FAULTED){
-		switch (PanelMode)
-		{
-		case Boot_State: //boot mode
-			PLC2_RDY = HIGH;
-			bootUpEN();
-			break;
-		case Auto_State: //auto mode
-			AutoMode();
-			break;
-		case Maint_State: //maint mode
-			MaintMode();
-			break;
-		case Fault_State: //fault mode
-			FaultMode();
-			break;
-		case Shutdown_State: //shutdown
-			ShutdownInit();
-			break;
-		case Home_State:
-			HomeMode(); //In-between mode to ensure the screen gets to horizontal position before shutting down. 
-			break;
-		default:
-			break;
-		}
-	}else if(MAINT_KEY && !FAULTED){
-		PanelMode = Maint_State;
-	}else if(FAULTED){
-		PanelMode = Fault_State;
-	}
-	
-	if(SEQ_STOP && !HORZ_CYC_COMP){
-		PanelMode = Home_State;
-	}else if(SEQ_STOP && HORZ_CYC_COMP){
-		PanelMode = Shutdown_State;
-	}
+	GateChecks();
 
-	if(SEQ_STOP_IN && !SEQ_STOP){
-		SEQ_STOP = HIGH;
+	switch (PanelMode)
+	{
+	case Boot_State: //boot mode
+		Serial.println("Boot_State Entered");
+		PLC2_RDY = HIGH;
+		bootUpEN();
+		break;
+	case Auto_State: //auto mode
+		Serial.println("Auto_State Entered");
+		AutoMode();
+		break;
+	case Maint_State: //maint mode
+		MaintMode();
+		Serial.println("Maint_State Entered");
+		break;
+	case Fault_State: //fault mode
+		Serial.println("Fault_State Entered");
+		FaultMode();
+		break;
+	case Shutdown_State: //shutdown
+		Serial.println("Shutdown_State Entered");
+		ShutdownInit();
+		break;
+	case Home_State:
+		Serial.println("Home_State Entered");
+		HomeMode(); //In-between mode to ensure the screen gets to horizontal position before shutting down. 
+		break;
+	default:
+		break;
 	}
-	SPARE1 = AUTO_MODE_OK;
 
 	writeOutputs();
 }
