@@ -255,7 +255,7 @@ void RotateHorz(){
 		STEPR_MV_MEM = LOW;
 		HORZ_SIG_OUT_MEM = LOW;
 		HORZ_CALL_MEM = LOW;
-		CL86T_EN = LOW;
+		//CL86T_EN = LOW;
 		CL86T_Flag = LOW;
 	}
 }
@@ -319,7 +319,7 @@ void RotateVert(){
 		STEPR_MV_MEM = LOW;
 		VERT_SIG_OUT_MEM = LOW;
 		VERT_CALL_MEM = LOW;
-		CL86T_EN = LOW;
+		//CL86T_EN = LOW;
 		CL86T_Flag = LOW;
 		return;
 	}
@@ -346,6 +346,10 @@ void VarReset(bool reset = false){
 		HORZ_CYC_COMP = LOW;
 		HORZ_SIG_OUT_MEM = LOW;
 		HORZ_CALL_MEM = LOW;
+
+		PWR_DN_PRP = LOW;
+		SEQ_STOP = LOW;
+		RDY_PWR_DN = LOW;
 
 		MaintVarSet = HIGH;
 		Serial.println("Vars reset");
@@ -417,6 +421,7 @@ void AutoMode(){
 	}else if(SEQ_STOP){
 		return;
 	}else if(!CL86T_EN){
+		Serial.println("Waiting for CL86T Enable...");
 		CL86T_EN = HIGH;
 		if(!CL86T_Reset_Timer.isRunning()){
 			CL86T_Reset_Timer.start();
@@ -537,6 +542,12 @@ void FaultMode(){
 
 void GateChecks(){
 
+	if(PanelMode == Fault_State){
+		CL86T_EN = LOW;
+	}else{
+		CL86T_EN = HIGH;
+	}
+
 	if(STP_PNL_FLT){
 		FAULTED = HIGH;
 	}
@@ -550,14 +561,14 @@ void GateChecks(){
 		PanelMode = Maint_State;
 	}
 	
-	if(SEQ_STOP && !HORZ_CYC_COMP){
+	if(SEQ_STOP && !HORZ_CYC_COMP && !MAINT_KEY){
 		Serial.println("Seq_Stop detected.");
 		PanelMode = Home_State;
-	}else if(SEQ_STOP && HORZ_CYC_COMP){
+	}else if(SEQ_STOP && HORZ_CYC_COMP && !MAINT_KEY){
 		PanelMode = Shutdown_State;
 	}
 
-	if(SEQ_STOP_IN && !SEQ_STOP){
+	if(SEQ_STOP_IN && !SEQ_STOP && !MAINT_KEY){
 		SEQ_STOP = HIGH;
 	}
 }
@@ -633,6 +644,8 @@ void loop(){
 	default:
 		break;
 	}
+
+	SPARE1 = CL86T_EN;
 
 	writeOutputs();
 }
