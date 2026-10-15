@@ -72,7 +72,7 @@ Timer OneSecTimer(1000);
 Timer ThreeSecTimer(3000);
 Timer FiveSecTimer(5000);
 Timer PwrDownTimer(3000);
-Timer RotateCycleTimer(60000); //60 second timer for the screen to rotate in the event of an issue.
+Timer RotateCycleTimer(30000); //30 second timer for the screen to rotate in the event of an issue.
 Timer ShutdownWaitTimer(180000); 
 Timer VarTimer(1000);
 Timer MaintTimer(5000);
@@ -93,6 +93,7 @@ bool STEPR_MV = LOW;
 bool MAINT_KEY = LOW;
 bool STEP_ALM = LOW;
 bool SEQ_STOP_IN = LOW;
+bool SPARE_IN = LOW;
 
 //Output bits with easier to read names.
 bool CL86T_EN = LOW;
@@ -104,7 +105,7 @@ bool SEQ_STOP = LOW;
 bool PLC2_RDY = LOW;
 bool VERT_SIG_OUT = LOW;
 bool HORZ_SIG_OUT = LOW;
-bool SPARE1 = LOW;
+bool SPARE_OUT = LOW;
 
 //Various memory bits.
 bool HORZ_CALL_MEM = LOW;
@@ -112,7 +113,6 @@ bool VERT_CALL_MEM = LOW;
 bool AUTO_MODE_OK = LOW;
 bool SYS_RDY_MEM = LOW;
 bool FAULTED = LOW;
-bool MAINT_MODE_SUTDOWN = LOW;
 bool PWR_DN_PRP = LOW;
 bool VERT_SIG_OUT_MEM = LOW; 
 bool HORZ_SIG_OUT_MEM = LOW;
@@ -123,10 +123,6 @@ bool HORZ_CYC_COMP = LOW;
 bool HORZ_OUT_TRIG = LOW;
 bool VERT_OUT_TRIG = LOW;
 bool MaintVarSet = LOW;
-bool GoHome = LOW;
-
-//Program Flow Control Stuff
-bool CL_DLY = LOW;
 
 enum RunMode{
 	Boot_State, //0
@@ -138,16 +134,6 @@ enum RunMode{
 };
 
 RunMode PanelMode = Boot_State; //Setup for initial start
-
-void bootUpEN(){
-	if(!ThreeSecTimer.isRunning()){
-		ThreeSecTimer.start();
-		CL86T_EN = HIGH;
-	}else if(ThreeSecTimer.isReady()){
-		ThreeSecTimer.stop();
-		PanelMode = Auto_State;
-	}
-}
 
 void readInputs(){
 
@@ -169,7 +155,7 @@ void readInputs(){
 	MAINT_KEY = IX05_ST;
 	STEP_ALM = IX06_ST;
 	SEQ_STOP_IN = IX07_ST;
-	//SPARE = IX10_ST;
+	SPARE_IN = IX10_ST;
 	
 }
  
@@ -184,7 +170,7 @@ void writeOutputs(){
 	QX06_ST = PLC2_RDY;
 	QX07_ST = VERT_SIG_OUT;
 	QX10_ST = HORZ_SIG_OUT;
-    QX11_ST = SPARE1;
+    QX11_ST = SPARE_OUT;
 	
 	digitalWrite(QX00, QX00_ST); //CR11 - CL86T ENABLE
 	digitalWrite(QX01, QX01_ST); //CR14 - MAINT MODE
@@ -197,6 +183,16 @@ void writeOutputs(){
 	digitalWrite(QX10, QX10_ST); //HORIZONTAL SIGNAL OUT TO SMGP 6
 	digitalWrite(QX11, QX11_ST); //SPARE
 	
+}
+
+void bootUpEN(){
+	if(!ThreeSecTimer.isRunning()){
+		ThreeSecTimer.start();
+		CL86T_EN = HIGH;
+	}else if(ThreeSecTimer.isReady()){
+		ThreeSecTimer.stop();
+		PanelMode = Auto_State;
+	}
 }
 
 void RotateHorz(){
@@ -645,7 +641,7 @@ void loop(){
 		break;
 	}
 
-	SPARE1 = CL86T_EN;
+	SPARE_OUT = CL86T_EN;
 
 	writeOutputs();
 }
