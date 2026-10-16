@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ESP_FlexyStepper.h>
+#include <Preferences.h>
 
 // Stepper pin assignments (Safe on C3 Super Mini)
 const int MOTOR_STEP_PIN = 3;

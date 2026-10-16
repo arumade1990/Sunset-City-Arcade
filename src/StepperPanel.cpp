@@ -8,6 +8,7 @@
 #include <OneShotPulse.h>
 #include <TimerON.h>
 #include <TimerOFF.h>
+#include <Preferences.h> 
 
 //Define the INPUT pins.
 const int IX00 = 17;
@@ -73,16 +74,20 @@ Timer ThreeSecTimer(3000);
 Timer FiveSecTimer(5000);
 Timer PwrDownTimer(3000);
 Timer RotateCycleTimer(30000); //30 second timer for the screen to rotate in the event of an issue.
-Timer ShutdownWaitTimer(180000); 
+Timer ShutdownWaitTimer(30000); //3 minutes to shutdown completely.
 Timer VarTimer(1000);
 Timer MaintTimer(5000);
 Timer MaintTimer2(5000);
-Timer CL86T_Reset_Timer(5000);
+Timer CL86T_Reset_Timer(10000); //Give plenty of time for the Stepper driver to figure itself out.
+Timer SaveStateTimer(1500);
 
 //Create the Special timers
 OneShotPulse horzPulse;
 OneShotPulse vertPulse;
 TimerON CL86T_EN_DLY;
+
+//create object for saving some non-volatile data
+Preferences SaveState; 
 
 //Input bits with easier to read names.
 bool VERT_CALL = LOW;
@@ -123,6 +128,8 @@ bool HORZ_CYC_COMP = LOW;
 bool HORZ_OUT_TRIG = LOW;
 bool VERT_OUT_TRIG = LOW;
 bool MaintVarSet = LOW;
+bool ShutdownDataRecorded = LOW;
+bool ShutDownFlt = LOW;
 
 enum RunMode{
 	Boot_State, //0
@@ -342,10 +349,12 @@ void VarReset(bool reset = false){
 		HORZ_CYC_COMP = LOW;
 		HORZ_SIG_OUT_MEM = LOW;
 		HORZ_CALL_MEM = LOW;
-
+		
+		ShutDownFlt = LOW;
 		PWR_DN_PRP = LOW;
 		SEQ_STOP = LOW;
 		RDY_PWR_DN = LOW;
+		ShutdownDataRecorded = LOW;
 
 		MaintVarSet = HIGH;
 		Serial.println("Vars reset");
@@ -416,34 +425,6 @@ void AutoMode(){
 		return;
 	}else if(SEQ_STOP){
 		return;
-	}else if(!CL86T_EN){
-		Serial.println("Waiting for CL86T Enable...");
-		CL86T_EN = HIGH;
-		if(!CL86T_Reset_Timer.isRunning()){
-			CL86T_Reset_Timer.start();
-		}
-		while(CL86T_Reset_Timer.isRunning()){
-			readInputs();
-			if(CL86T_Reset_Timer.isReady()){
-				CL86T_Reset_Timer.stop();
-				break;
-			}
-
-			isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
-
-			if(!isBusy) {
-				if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP) {
-					HORZ_CALL_MEM = HIGH;
-					VERT_CYC_COMP = LOW; // Prep the opposite flag for next time
-				}
-				else if(VERT_CALL && !HORZ_CALL && !VERT_CYC_COMP) {
-					VERT_CALL_MEM = HIGH;
-					HORZ_CYC_COMP = LOW; // Prep the opposite flag for next time
-				}
-			}
-
-			writeOutputs();
-		}
 	}
 }
 
@@ -490,6 +471,15 @@ void HomeMode(){
 }
 
 void ShutdownInit(){
+
+	if(!ShutdownDataRecorded){
+		SaveState.begin("config", false);
+		SaveState.putBool("FAULTED", FAULTED);
+		SaveState.putBool("HorzState", HORZ_CYC_COMP);
+		SaveState.putBool("VertState", VERT_CYC_COMP);
+		SaveState.end();
+		ShutdownDataRecorded = HIGH;
+	}
 	
 	if(HORZ_CYC_COMP && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
 		SYS_RDY_MEM = LOW;
@@ -497,7 +487,7 @@ void ShutdownInit(){
 		PwrDownTimer.start();
 	}
 	
-	if(PWR_DN_PRP && PwrDownTimer.isReady() && !ShutdownWaitTimer.isRunning()){
+	if(PWR_DN_PRP && PwrDownTimer.isReady() && !ShutdownWaitTimer.isRunning() && !ShutDownFlt){
 		RDY_PWR_DN = HIGH;
 		PwrDownTimer.stop();
 		ShutdownWaitTimer.start();
@@ -506,10 +496,12 @@ void ShutdownInit(){
 	if(!MAINT_KEY && RDY_PWR_DN){
 			
 		if(ShutdownWaitTimer.isReady()){
-			STP_PNL_FLT = HIGH;
-			FAULTED = STP_PNL_FLT;
+			ShutDownFlt = HIGH;
 			ShutdownWaitTimer.stop();
 			PanelMode = Fault_State;
+			if(ShutDownFlt){
+				ShutdownDataRecorded = LOW;
+			}
 			return;
 		}
 	} 
@@ -538,17 +530,43 @@ void FaultMode(){
 
 void GateChecks(){
 
+	bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
+
 	if(PanelMode == Fault_State){
 		CL86T_EN = LOW;
-	}else{
+	}else if(PanelMode != Fault_State && !CL86T_EN){
+		Serial.println("Waiting for CL86T Enable Gate check...");
 		CL86T_EN = HIGH;
+		if(!CL86T_Reset_Timer.isRunning()){
+			CL86T_Reset_Timer.start();
+		}
+		while(CL86T_Reset_Timer.isRunning()){
+			readInputs();
+			if(CL86T_Reset_Timer.isReady()){
+				CL86T_Reset_Timer.stop();
+				break;
+			}
+
+			if(!isBusy) {
+				if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP) {
+					HORZ_CALL_MEM = HIGH;
+					VERT_CYC_COMP = LOW; // Prep the opposite flag for next time
+				}
+				else if(VERT_CALL && !HORZ_CALL && !VERT_CYC_COMP) {
+					VERT_CALL_MEM = HIGH;
+					HORZ_CYC_COMP = LOW; // Prep the opposite flag for next time
+				}
+			}
+
+			writeOutputs();
+		}
 	}
 
-	if(STP_PNL_FLT){
+	if(STP_PNL_FLT || ShutDownFlt || STEP_ALM){
 		FAULTED = HIGH;
 	}
 
-	if(FAULTED){
+	if(FAULTED && !SEQ_STOP_IN){
 		PanelMode = Fault_State;
 	}
 
@@ -557,16 +575,30 @@ void GateChecks(){
 		PanelMode = Maint_State;
 	}
 	
-	if(SEQ_STOP && !HORZ_CYC_COMP && !MAINT_KEY){
-		Serial.println("Seq_Stop detected.");
-		PanelMode = Home_State;
-	}else if(SEQ_STOP && HORZ_CYC_COMP && !MAINT_KEY){
-		PanelMode = Shutdown_State;
-	}
+	if(!MAINT_KEY){
 
-	if(SEQ_STOP_IN && !SEQ_STOP && !MAINT_KEY){
-		SEQ_STOP = HIGH;
+		if(SEQ_STOP_IN && !SEQ_STOP){
+			SEQ_STOP = HIGH;
+		}
+
+		if(SEQ_STOP && !HORZ_CYC_COMP){
+			Serial.println("Seq_Stop detected.");
+			PanelMode = Home_State;
+		}else if(SEQ_STOP && HORZ_CYC_COMP){
+			PanelMode = Shutdown_State;
+		}
 	}
+	
+}
+
+void GetPrevStateData(){ //This should only run once in the setup function. 
+
+	SaveState.begin("config", true);
+	FAULTED = SaveState.getBool("FAULTED", LOW);
+	HORZ_CYC_COMP = SaveState.getBool("HorzState", LOW);
+	VERT_CYC_COMP = SaveState.getBool("VertState", LOW);
+	SaveState.end();
+
 }
 
 void setup(){
@@ -600,6 +632,8 @@ void setup(){
 	}
 
   Serial.println("Serial Initialized.");
+
+  GetPrevStateData();
 	
   }
 
