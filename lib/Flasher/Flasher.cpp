@@ -24,16 +24,19 @@ bool Flasher::start(bool startIdleState, int count) {
     return true;
 }
 
-bool Flasher::resetCount() {
-    if (!running) {
-        return false; // Don't reset if it isn't currently active
-    }
+bool Flasher::resetCount(bool modifier) {
+   // if (!running) {
+   //     return false; // Don't reset if it isn't currently active
+   // }
     
     previousMillis = millis(); // Reset the time window so the next flash isn't premature
     
-    if (totalCount > 0) {
+    if (totalCount > 0 && modifier) {
         remainingToggles = totalCount * 2; // Restore original countdown
-    } else {
+    }else if(!modifier){
+        running = true;
+        remainingToggles = totalCount * 2;
+    }else if (totalCount < 0){
         remainingToggles = -1;             // Keep infinite flashing if it was infinite
     }
     return true;
@@ -53,7 +56,7 @@ bool Flasher::flash(bool &variableToFlash) {
     if (remainingToggles > 0) {
         remainingToggles--;
         if (remainingToggles == 0) {
-            stop(); 
+            stop(variableToFlash); 
         }
     }
 
@@ -66,9 +69,10 @@ void Flasher::setInterval(unsigned long newInterval) {
     interval = newInterval;
 }
 
-bool Flasher::stop() {
+bool Flasher::stop(bool &variableToStop) {
     running = false;
     remainingToggles = 0;
+    variableToStop = idleState;
     return true;
 }
 

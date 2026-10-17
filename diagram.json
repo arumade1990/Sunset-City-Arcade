@@ -326,70 +326,70 @@
       "id": "text3",
       "top": -48,
       "left": 806.4,
-      "attrs": { "text": "QX00 CL86T ENABLE" }
+      "attrs": { "text": "QX00 SEQ START MEM" }
     },
     {
       "type": "wokwi-text",
       "id": "text4",
       "top": 307.2,
       "left": 806.4,
-      "attrs": { "text": "QX011 SPARE" }
+      "attrs": { "text": "QX11 DSP AUD PWR" }
     },
     {
       "type": "wokwi-text",
       "id": "text5",
       "top": -9.6,
       "left": 806.4,
-      "attrs": { "text": "QX01 MAINT MODE" }
+      "attrs": { "text": "QX01 SEQ STOP MEM" }
     },
     {
       "type": "wokwi-text",
       "id": "text6",
       "top": 28.8,
       "left": 806.4,
-      "attrs": { "text": "QX02 READY FOR PWR DOWN" }
+      "attrs": { "text": "QX02 PLC1 RDY" }
     },
     {
       "type": "wokwi-text",
       "id": "text7",
       "top": 67.2,
       "left": 806.4,
-      "attrs": { "text": "QX03 SYS RDY/PC RUN" }
+      "attrs": { "text": "QX03 GRN PL" }
     },
     {
       "type": "wokwi-text",
       "id": "text8",
       "top": 115.2,
       "left": 806.4,
-      "attrs": { "text": "QX04 STEPPER PANEL FLT" }
+      "attrs": { "text": "QX04 RED PL" }
     },
     {
       "type": "wokwi-text",
       "id": "text9",
       "top": 153.6,
       "left": 806.4,
-      "attrs": { "text": "QX05 SEQ STOP" }
+      "attrs": { "text": "QX05 MC 2 PWR" }
     },
     {
       "type": "wokwi-text",
       "id": "text10",
       "top": 192,
       "left": 806.4,
-      "attrs": { "text": "QX06  PLC2 READY" }
+      "attrs": { "text": "QX06 SYS RDY OUT" }
     },
     {
       "type": "wokwi-text",
       "id": "text11",
       "top": 230.4,
       "left": 806.4,
-      "attrs": { "text": "QX07 VERT SIG OUT TO SMGP 5" }
+      "attrs": { "text": "QX07 TOTAL PWR OFF" }
     },
     {
       "type": "wokwi-text",
       "id": "text12",
       "top": 268.8,
       "left": 806.4,
-      "attrs": { "text": "QX010 HORZ SIG OUT TO  SMGP 6" }
+      "attrs": { "text": "QX10 PC PWR PLS" }
     },
     {
       "type": "wokwi-text",

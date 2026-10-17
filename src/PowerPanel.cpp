@@ -96,11 +96,16 @@ Timer PcPwrBtnCycleTimer(600000); //10 minutes
 Timer PcPwrBtnDly(2000);
 Timer ScreenAudioDly(5000);
 Timer PnlShutdownCycleTime(30000);
+Timer MntTimer1(3000);
+Timer MntTimer2(5000);
+Timer MntTimerShort(2000);
+Timer MntFlashTimer(5000);
 
 //Special timers
 TimerOFF PwrBtnCoolDown;
 TimerON ShutdownConfirmTmr;
 TimerON TotalShutdownTimer;
+TimerON MaintPBTimer;
 OneShotPulse PcPwrBtnPls;
 
 //Flip Flops
@@ -109,6 +114,10 @@ ToggleFlipFlop PwrBtnFF;
 //Flashers
 Flasher RedFlash(1000);
 Flasher GrnFlash(500); //deafult 2000
+Flasher MntFlash1(1000);
+int MntFlash1Toggles = 0;
+Flasher MntFlash2(2000);
+int MntFlash2Toggles = 0;
 
 enum RunMode {
   Boot_State,
@@ -118,11 +127,19 @@ enum RunMode {
   Shutdown_State,
   PcPwrOn_State,
   DispAudPwr_State,
-  Idle_State
+  Idle_State,
+  PreBoot
+};
+RunMode PanelMode = PreBoot;
+
+enum MntMode{
+  IdleDoNothing,
+  ForceDispAudON,
+  ForcePCPwrBtn,
+  ForceTotalPwrOFF
 };
 
-RunMode PanelMode = Boot_State;
-
+MntMode MaintModes = IdleDoNothing;
 // ========================================== Application Routines
 
 void readInputs(){
@@ -144,6 +161,7 @@ void readInputs(){
 	MNT_MODE_ACTIVE = IX04_ST; //Yellow
 	SHUTDOWN_RDY = IX05_ST; //White
 	MNT_MODE_PB = IX06_ST; //Black
+  //SPARE_IN = IX07_ST; //SPARE
 	STP_PNL_FLT = IX10_ST; //Red  
 }
 
@@ -172,10 +190,6 @@ void writeOutputs() {
   digitalWrite(QX11, QX11_ST);
 }
 
-void MaintMode(){
-  return;
-}
-
 void PcPwrOff(){
 
   static bool shutdownConfirm = LOW;
@@ -197,7 +211,7 @@ void PcPwrOff(){
       }
     }
 
-    ShutdownConfirmTmr.update(MC2_PWR, LOW, shutdownConfirm, HIGH, 5000);
+    ShutdownConfirmTmr.update(MC2_PWR, LOW, shutdownConfirm, HIGH, 5000); //Shuts off MC2 once SHUTDOWN READY  signal is received. 
 
     if(!MC2_PWR && shutdownConfirm){
       TotalShutdownTimer.update(TOTAL_PWR_OFF, HIGH, MC2_PWR, LOW, 3000);
@@ -208,6 +222,7 @@ void PcPwrOff(){
 
     if(CycleTimeout){
       PanelMode = Fault_State;
+      FAULTED = HIGH;
       PnlShutdownCycleTime.stop();
       return;
     }
@@ -303,7 +318,6 @@ bool PcPwrHandler(bool reset = false){
   return complete;
 }
 
-
 bool DisplayAudioPwr(bool reset = false){
 
   static bool complete = false;
@@ -321,9 +335,12 @@ bool DisplayAudioPwr(bool reset = false){
     ScreenAudioDly.stop();
     DSP_AUD_PWR = HIGH;
     complete = true;
-    PanelMode = Idle_State;
+    if(!MNT_MODE_ACTIVE){
+      PanelMode = Idle_State;
+    }else if(MNT_MODE_ACTIVE){
+      return complete;
+    }
   }
-
   return complete;
 }
 
@@ -332,6 +349,7 @@ void FaultMode(){
 }
 
 bool PowerUpMode(bool reset = false){
+
   static bool complete = false;
   bool result = complete;
   bool CycleTimeout = PcPwrCycleTimer.isReady();
@@ -368,6 +386,114 @@ bool PowerUpMode(bool reset = false){
 
 }
 
+void MaintMode(){
+  static int MaintBtnPresses = 0;
+  static bool PBCountTrig = LOW;
+  static bool oneShot = LOW;
+  static bool ModeSet = LOW;
+  static bool SecondOneShot = LOW;
+  static bool FlashTrig = LOW;
+
+  if(MNT_MODE_ACTIVE && !FAULTED){
+    
+    MaintPBTimer.update(PBCountTrig, HIGH, MNT_MODE_PB, HIGH, 150); //Maint PB TON
+    
+    if(!oneShot && PBCountTrig && !ModeSet){  //Count he number of times the maint pb is pressed. Reset stuff when you do that. 
+      Serial.println("Maint PB Pressed.");
+      MntTimerShort.start();
+      MntTimer1.stop();
+      MntFlashTimer.stop();
+      //MntFlash1.resetCount();      
+      MaintBtnPresses++;
+      oneShot = HIGH;
+    }else if(!PBCountTrig){
+      oneShot = LOW;
+    }
+    if(MntTimerShort.isReady()){  //This section sets the variable to indicate with the green PL how many PB presses you made. 
+      //MntFlash1Toggles = MaintBtnPresses; 
+      MntTimerShort.stop();
+      MntFlashTimer.start();
+      Serial.println("You pressed the button ");
+      Serial.println(MaintBtnPresses);
+      Serial.println("times.");
+    }
+
+    if(MntFlashTimer.isReady()){ //This section is purely for delay to let the user decide if they made a mistake. Think quick!
+      MntFlash1.start(LOW, MaintBtnPresses);
+      MntFlashTimer.stop();
+      FlashTrig = HIGH;
+      MntTimer1.start();
+    }
+
+    if(FlashTrig){ //This section actually does the falshing of the green PL.
+      MntFlash1.flash(GRN_PL);
+    }else if(!MntFlash1.isRunning()){
+      MntTimer1.start();
+      FlashTrig = LOW;
+    }
+
+    if(MntTimer1.isReady()){ //This section sets the final mode. No going back unless you exit maint mode and reset the variables. 
+      Serial.print("Mode is Set.");
+      ModeSet = HIGH;
+      MntTimer1.stop();
+
+      if(MaintBtnPresses == 1){
+        MaintModes = ForceDispAudON;
+      }else if(MaintBtnPresses == 2){
+        MaintModes = ForcePCPwrBtn;
+      }else if(MaintBtnPresses == 3){
+        MaintModes = ForceTotalPwrOFF;
+      }else if(MaintBtnPresses > 3){
+        MaintBtnPresses = 0;
+        MaintModes = IdleDoNothing;
+      }
+
+    }
+
+    if(ModeSet){
+      switch (MaintModes)
+      {
+      case IdleDoNothing:
+        delay(10);
+        break;
+      case ForceDispAudON:
+      //Serial.println("ForceDispAudON State entered");
+        if(MNT_MODE_PB && !SecondOneShot){
+          SecondOneShot = HIGH;
+          DSP_AUD_PWR = !DSP_AUD_PWR;
+        }else if(!MNT_MODE_PB){
+          SecondOneShot = LOW;
+        }
+        break;
+      case ForcePCPwrBtn:
+        PC_PWR_PLS = MNT_MODE_PB;
+        break;
+      case ForceTotalPwrOFF:
+        TOTAL_PWR_OFF = MNT_MODE_PB;
+        break;
+      default:
+        delay(10);
+        break;
+      }
+    }
+    return;
+    
+  }else if(!MNT_MODE_ACTIVE){
+    SecondOneShot = LOW;
+    oneShot = LOW;
+    MaintBtnPresses = 0;
+    MaintModes = IdleDoNothing;
+    MntFlash1.resetCount();
+    MntTimer1.stop();
+    MntTimerShort.stop();
+    MntFlashTimer.stop();
+    MaintPBTimer.reset();
+    ModeSet = LOW;
+    PanelMode = Idle_State;
+  }
+  return;
+}
+
 void setup(){
 	pinMode(IX00, INPUT);
 	pinMode(IX01, INPUT);
@@ -393,68 +519,94 @@ void setup(){
   RedFlash.start(LOW);
   GrnFlash.start(LOW);
 
+  Serial.begin(115200);
+
+  while(!Serial){
+	delay(100);
+	}
+
+  Serial.println("Serial Initialized.");
+
 }
 
 void loop(){ 
 	delay(10);
 	readInputs();
 
-  if(PwrBtn() || PanelMode == Shutdown_State){
     switch (PanelMode)
     {
     case Boot_State:
+      Serial.println("Boot State");
       PLC1_RDY = HIGH;
       GrnFlash.flash(GRN_PL);
       PanelMode = PowerUp_State;
       break;
     case PowerUp_State:
+      Serial.println("Power Up State");
       GrnFlash.setInterval(1000);
       GrnFlash.flash(GRN_PL);
       PowerUpMode();
       break;
     case PcPwrOn_State:
+     Serial.println("PcPwrOn State");
       GrnFlash.setInterval(500);
       GrnFlash.flash(GRN_PL);
       PcPwrHandler();
     break;
     case DispAudPwr_State:
+     Serial.println("DispAudPwr State");
       DisplayAudioPwr();
       break;
     case Idle_State:
+     Serial.println("Idle State");
       if(GrnFlash.isRunning()){
-        GrnFlash.stop();
+        GrnFlash.start(GRN_PL);
+        GrnFlash.stop(GRN_PL);
         GRN_PL = HIGH;
       }
       break;
     case Shutdown_State:
+     Serial.println("Shutdown State");
       GrnFlash.flash(GRN_PL);
       PcPwrOff();
       break;
     case Fault_State:
+     Serial.println("Fault State");
       RedFlash.flash(RED_PL);
       GRN_PL = LOW;
       break;
     case Maint_State:
-      GrnFlash.flash(GRN_PL);
+     //Serial.println("Maint State");
+      if(GrnFlash.isRunning() || RedFlash.isRunning()){;
+        GrnFlash.stop(GRN_PL);
+        RedFlash.stop(RED_PL);
+      }
+      MaintMode();
+      break;
+    case PreBoot:
+      delay(90);
       break;
     default:
       break;
     }
+  
+  if(PwrBtn() && PanelMode == PreBoot){
+    PanelMode = Boot_State;
   }else if(!PwrBtn() && PLC1_RDY){
     if(!GrnFlash.isRunning()){
       GrnFlash.start(LOW);
       GrnFlash.setInterval(2000);
     }
     PanelMode = Shutdown_State;
-  }else if(MNT_MODE_ACTIVE){
-    if(!GrnFlash.isRunning()){
-      GrnFlash.start(LOW);
-    }
-    GrnFlash.setInterval(3000);
+  }
+  
+  if(MNT_MODE_ACTIVE && !FAULTED){
     PanelMode = Maint_State;
-  }else if(FAULTED){
+  }
+  
+  if(FAULTED){
     if(GrnFlash.isRunning()){
-      GrnFlash.stop();
+      GrnFlash.stop(GRN_PL);
     }
     if(!RedFlash.isRunning()){
       RedFlash.start(LOW);

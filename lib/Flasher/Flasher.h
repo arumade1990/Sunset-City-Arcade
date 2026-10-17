@@ -17,13 +17,13 @@ class Flasher {
 
     bool start(bool startIdleState, int count = -1);
 
-    bool resetCount();
+    bool resetCount(bool modifier = false);
 
     bool flash(bool &variableToFlash);
 
     void setInterval(unsigned long newInterval);
 
-    bool stop();
+    bool stop(bool &variableToStop);
 
     bool isRunning();
 };
