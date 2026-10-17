@@ -479,6 +479,9 @@ void ShutdownInit(){
 		SaveState.putBool("VertState", VERT_CYC_COMP);
 		SaveState.end();
 		ShutdownDataRecorded = HIGH;
+		
+		Serial.println("Data Saved.");
+		delay(3000);
 	}
 	
 	if(HORZ_CYC_COMP && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
@@ -598,6 +601,9 @@ void GetPrevStateData(){ //This should only run once in the setup function.
 	HORZ_CYC_COMP = SaveState.getBool("HorzState", LOW);
 	VERT_CYC_COMP = SaveState.getBool("VertState", LOW);
 	SaveState.end();
+	
+	Serial.println("Data Retrieved.");
+	delay(3000);
 
 }
 
