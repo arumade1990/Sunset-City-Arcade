@@ -87,6 +87,7 @@ bool DSP_AUD_PWR = LOW;
 bool FAULTED = LOW;
 int PwrUpComplete = 0;
 int PwrTries = 0;
+bool InIdle = LOW;
 
 //Instantiation of class objects
 
@@ -114,9 +115,9 @@ ToggleFlipFlop PwrBtnFF;
 //Flashers
 Flasher RedFlash(1000);
 Flasher GrnFlash(500); //deafult 2000
-Flasher MntFlash1(1000);
+Flasher MntFlash1(500);
 int MntFlash1Toggles = 0;
-Flasher MntFlash2(2000);
+Flasher MntFlash2(1000);
 int MntFlash2Toggles = 0;
 
 enum RunMode {
@@ -386,6 +387,18 @@ bool PowerUpMode(bool reset = false){
 
 }
 
+void DirectPwrDown(){
+  static bool OneShot = LOW;
+
+  if(MNT_MODE_PB && !OneShot){
+    OneShot = HIGH;
+  }
+
+  if(!MNT_MODE_PB && OneShot){
+    TOTAL_PWR_OFF = HIGH;
+  }
+}
+
 void MaintMode(){
   static int MaintBtnPresses = 0;
   static bool PBCountTrig = LOW;
@@ -398,43 +411,41 @@ void MaintMode(){
     
     MaintPBTimer.update(PBCountTrig, HIGH, MNT_MODE_PB, HIGH, 150); //Maint PB TON
     
-    if(!oneShot && PBCountTrig && !ModeSet){  //Count he number of times the maint pb is pressed. Reset stuff when you do that. 
+    if(!oneShot && PBCountTrig && !ModeSet){  //Count the number of times the maint pb is pressed. Reset stuff when you do that. 
       Serial.println("Maint PB Pressed.");
       MntTimerShort.start();
       MntTimer1.stop();
-      MntFlashTimer.stop();
-      //MntFlash1.resetCount();      
+      MntFlash1.stop(GRN_PL);
+      MntFlashTimer.stop();    
       MaintBtnPresses++;
       oneShot = HIGH;
     }else if(!PBCountTrig){
       oneShot = LOW;
     }
     if(MntTimerShort.isReady()){  //This section sets the variable to indicate with the green PL how many PB presses you made. 
-      //MntFlash1Toggles = MaintBtnPresses; 
+      MntFlash1Toggles = MaintBtnPresses; 
       MntTimerShort.stop();
-      MntFlashTimer.start();
       Serial.println("You pressed the button ");
       Serial.println(MaintBtnPresses);
       Serial.println("times.");
+      MntFlash1.start(LOW, MntFlash1Toggles);
+      MntFlashTimer.start();
+    }
+
+    if(MntFlashTimer.isRunning()){ //This section actually does the flashing of the green PL.
+      MntFlash1.flash(GRN_PL);
     }
 
     if(MntFlashTimer.isReady()){ //This section is purely for delay to let the user decide if they made a mistake. Think quick!
-      MntFlash1.start(LOW, MaintBtnPresses);
       MntFlashTimer.stop();
-      FlashTrig = HIGH;
+      MntFlash1.stop(GRN_PL);
       MntTimer1.start();
-    }
-
-    if(FlashTrig){ //This section actually does the falshing of the green PL.
-      MntFlash1.flash(GRN_PL);
-    }else if(!MntFlash1.isRunning()){
-      MntTimer1.start();
-      FlashTrig = LOW;
     }
 
     if(MntTimer1.isReady()){ //This section sets the final mode. No going back unless you exit maint mode and reset the variables. 
       Serial.print("Mode is Set.");
       ModeSet = HIGH;
+      GRN_PL = HIGH;
       MntTimer1.stop();
 
       if(MaintBtnPresses == 1){
@@ -469,7 +480,7 @@ void MaintMode(){
         PC_PWR_PLS = MNT_MODE_PB;
         break;
       case ForceTotalPwrOFF:
-        TOTAL_PWR_OFF = MNT_MODE_PB;
+        DirectPwrDown();
         break;
       default:
         delay(10);
@@ -483,7 +494,7 @@ void MaintMode(){
     oneShot = LOW;
     MaintBtnPresses = 0;
     MaintModes = IdleDoNothing;
-    MntFlash1.resetCount();
+    MntFlash1.stop(GRN_PL);
     MntTimer1.stop();
     MntTimerShort.stop();
     MntFlashTimer.stop();
@@ -559,10 +570,11 @@ void loop(){
       break;
     case Idle_State:
      Serial.println("Idle State");
-      if(GrnFlash.isRunning()){
+      if(GrnFlash.isRunning() || !InIdle){
         GrnFlash.start(GRN_PL);
         GrnFlash.stop(GRN_PL);
         GRN_PL = HIGH;
+        InIdle = HIGH;
       }
       break;
     case Shutdown_State:
@@ -577,9 +589,12 @@ void loop(){
       break;
     case Maint_State:
      //Serial.println("Maint State");
-      if(GrnFlash.isRunning() || RedFlash.isRunning()){;
+      if(GrnFlash.isRunning() || RedFlash.isRunning() || InIdle){;
         GrnFlash.stop(GRN_PL);
         RedFlash.stop(RED_PL);
+        RED_PL = LOW;
+        GRN_PL = LOW;
+        InIdle = LOW;
       }
       MaintMode();
       break;
