@@ -92,13 +92,13 @@ bool InIdle = LOW;
 //Instantiation of class objects
 
 //Timers
-Timer PcPwrCycleTimer(300000); //5 minutes
-Timer PcPwrBtnCycleTimer(600000); //10 minutes
+Timer PcPwrCycleTimer(30000); //5 minutes
+Timer PcPwrBtnCycleTimer(30000); //10 minutes
 Timer PcPwrBtnDly(2000);
 Timer ScreenAudioDly(5000);
 Timer PnlShutdownCycleTime(30000);
 Timer MntTimer1(3000);
-Timer MntTimer2(5000);
+Timer FltTimer(5000);
 Timer MntTimerShort(2000);
 Timer MntFlashTimer(5000);
 
@@ -114,11 +114,11 @@ ToggleFlipFlop PwrBtnFF;
 
 //Flashers
 Flasher RedFlash(1000);
-Flasher GrnFlash(500); //deafult 2000
+Flasher GrnFlash(2000); //deafult 2000
 Flasher MntFlash1(500);
 int MntFlash1Toggles = 0;
-Flasher MntFlash2(1000);
-int MntFlash2Toggles = 0;
+Flasher FltFlash(1000);
+int FltFlashToggles = 0;
 
 enum RunMode {
   Boot_State,
@@ -165,7 +165,6 @@ void readInputs(){
   //SPARE_IN = IX07_ST; //SPARE
 	STP_PNL_FLT = IX10_ST; //Red  
 }
-
 
 void writeOutputs() {
   QX00_ST = SEQ_START_MEM; //Green
@@ -309,11 +308,11 @@ bool PcPwrHandler(bool reset = false){
     }
 
   } else if(FAULTED){
-    PanelMode = Fault_State;
+    return false;
   } else if(MNT_MODE_ACTIVE){
-    PanelMode = Maint_State;
     PcPwrBtnCycleTimer.stop();
     PcPwrBtnDly.stop();
+    return false;
   }
 
   return complete;
@@ -345,9 +344,38 @@ bool DisplayAudioPwr(bool reset = false){
   return complete;
 }
 
-void FaultMode(){
+void FaultMode() { // If a fault occurs, you basically have to do the power sequence manually.
+
+  static bool timeMet = false; // Initialize explicitly
+
+  if (timeMet && MNT_MODE_ACTIVE && FAULTED) {
+    delay(3000);
+    RED_PL = LOW;
+    FltTimer.stop();
+    FAULTED = LOW;
+    timeMet = false;      
+    PanelMode = Maint_State;
+    return;
+  }
+
+  else if (FAULTED && MNT_MODE_ACTIVE) {
+    if (!FltTimer.isRunning()) {
+      FltTimer.start();
+    }
+
+    if (FltTimer.isReady()) {
+      timeMet = true;         
+      RED_PL = HIGH;
+      FltTimer.stop();
+    }
+  } 
+
+  else {
+    FltTimer.stop();
+  }
   return;
 }
+
 
 bool PowerUpMode(bool reset = false){
 
@@ -559,17 +587,17 @@ void loop(){
       PowerUpMode();
       break;
     case PcPwrOn_State:
-     Serial.println("PcPwrOn State");
+      Serial.println("PcPwrOn State");
       GrnFlash.setInterval(500);
       GrnFlash.flash(GRN_PL);
       PcPwrHandler();
     break;
     case DispAudPwr_State:
-     Serial.println("DispAudPwr State");
+      Serial.println("DispAudPwr State");
       DisplayAudioPwr();
       break;
     case Idle_State:
-     Serial.println("Idle State");
+      Serial.println("Idle State");
       if(GrnFlash.isRunning() || !InIdle){
         GrnFlash.start(GRN_PL);
         GrnFlash.stop(GRN_PL);
@@ -578,12 +606,13 @@ void loop(){
       }
       break;
     case Shutdown_State:
-     Serial.println("Shutdown State");
+      Serial.println("Shutdown State");
       GrnFlash.flash(GRN_PL);
       PcPwrOff();
       break;
     case Fault_State:
-     Serial.println("Fault State");
+      Serial.println("Fault State");
+      FaultMode();
       RedFlash.flash(RED_PL);
       GRN_PL = LOW;
       break;
