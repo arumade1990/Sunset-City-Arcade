@@ -2,7 +2,7 @@
 #include "OneShotPulse.h"
 
 OneShotPulse::OneShotPulse() {
-    startTime;
+    startTime = 0;
     isRunning = false;
     lastTriggerState = false;
 }

@@ -2,7 +2,7 @@
 #include "TimerOFF.h"
 
 TimerOFF::TimerOFF(){
-    startTime;
+    startTime = 0;
     isRunning = false;
     lastTriggerState = false;
     trigWasPressed = false;
