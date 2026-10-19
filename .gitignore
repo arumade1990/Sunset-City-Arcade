@@ -1,5 +1,27 @@
-.pio
-.vscode/.browse.c_cpp.db*
+# --- PlatformIO Build and Environment Files ---
+.pio/
+.pioenvs/
+.piolibdeps/
+*.gcc
+*.gdb
+
+# --- VS Code & IntelliSense Files (Crucial for OS Switching) ---
 .vscode/c_cpp_properties.json
 .vscode/launch.json
-.vscode/ipch
+.vscode/ipch/
+.vscode/.browse.c_cpp.db
+
+# --- Keep settings/extensions optional, but ignore local workspace states ---
+.vscode/tasks.json
+.workspace/
+
+# --- Operating System Files ---
+# Windows
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Linux
+.directory
+*~
+*.swp
