@@ -433,7 +433,6 @@ void MaintMode(){
   static bool oneShot = LOW;
   static bool ModeSet = LOW;
   static bool SecondOneShot = LOW;
-  static bool FlashTrig = LOW;
 
   if(MNT_MODE_ACTIVE && !FAULTED){
     
