@@ -74,7 +74,7 @@ Timer ThreeSecTimer(3000);
 Timer FiveSecTimer(5000);
 Timer PwrDownTimer(3000);
 Timer RotateCycleTimer(30000); //30 second timer for the screen to rotate in the event of an issue.
-Timer ShutdownWaitTimer(30000); //3 minutes to shutdown completely.
+Timer ShutdownWaitTimer(180000); //3 minutes to shutdown completely.
 Timer VarTimer(1000);
 Timer MaintTimer(5000);
 Timer MaintTimer2(5000);

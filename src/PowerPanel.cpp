@@ -92,11 +92,11 @@ bool InIdle = LOW;
 //Instantiation of class objects
 
 //Timers
-Timer PcPwrCycleTimer(30000); //5 minutes
-Timer PcPwrBtnCycleTimer(30000); //10 minutes
+Timer PcPwrCycleTimer(300000); //5 minutes
+Timer PcPwrBtnCycleTimer(480000); //8 minutes
 Timer PcPwrBtnDly(2000);
 Timer ScreenAudioDly(5000);
-Timer PnlShutdownCycleTime(30000);
+Timer PnlShutdownCycleTime(300000); //5 minutes
 Timer MntTimer1(3000);
 Timer FltTimer(5000);
 Timer MntTimerShort(2000);
