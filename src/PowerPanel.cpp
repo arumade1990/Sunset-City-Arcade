@@ -439,7 +439,7 @@ void MaintMode(){
     MaintPBTimer.update(PBCountTrig, HIGH, MNT_MODE_PB, HIGH, 150); //Maint PB TON
     
     if(!oneShot && PBCountTrig && !ModeSet){  //Count the number of times the maint pb is pressed. Reset stuff when you do that. 
-      Serial.println("Maint PB Pressed.");
+      //Serial.println("Maint PB Pressed.");
       MntTimerShort.start();
       MntTimer1.stop();
       MntFlash1.stop(GRN_PL);
@@ -452,9 +452,9 @@ void MaintMode(){
     if(MntTimerShort.isReady()){  //This section sets the variable to indicate with the green PL how many PB presses you made. 
       MntFlash1Toggles = MaintBtnPresses; 
       MntTimerShort.stop();
-      Serial.println("You pressed the button ");
-      Serial.println(MaintBtnPresses);
-      Serial.println("times.");
+      //Serial.println("You pressed the button ");
+      //Serial.println(MaintBtnPresses);
+      //Serial.println("times.");
       MntFlash1.start(LOW, MntFlash1Toggles);
       MntFlashTimer.start();
     }
@@ -470,7 +470,7 @@ void MaintMode(){
     }
 
     if(MntTimer1.isReady()){ //This section sets the final mode. No going back unless you exit maint mode and reset the variables. 
-      Serial.print("Mode is Set.");
+      //Serial.print("Mode is Set.");
       ModeSet = HIGH;
       GRN_PL = HIGH;
       MntTimer1.stop();
@@ -557,13 +557,13 @@ void setup(){
   RedFlash.start(LOW);
   GrnFlash.start(LOW);
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
 
-  while(!Serial){
-	delay(100);
-	}
+  //while(!Serial){
+	//delay(100);
+	//}
 
-  Serial.println("Serial Initialized.");
+  //Serial.println("Serial Initialized.");
 
 }
 
@@ -574,29 +574,29 @@ void loop(){
     switch (PanelMode)
     {
     case Boot_State:
-      Serial.println("Boot State");
+      //Serial.println("Boot State");
       PLC1_RDY = HIGH;
       GrnFlash.flash(GRN_PL);
       PanelMode = PowerUp_State;
       break;
     case PowerUp_State:
-      Serial.println("Power Up State");
+      //Serial.println("Power Up State");
       GrnFlash.setInterval(1000);
       GrnFlash.flash(GRN_PL);
       PowerUpMode();
       break;
     case PcPwrOn_State:
-      Serial.println("PcPwrOn State");
+      //Serial.println("PcPwrOn State");
       GrnFlash.setInterval(500);
       GrnFlash.flash(GRN_PL);
       PcPwrHandler();
     break;
     case DispAudPwr_State:
-      Serial.println("DispAudPwr State");
+      //Serial.println("DispAudPwr State");
       DisplayAudioPwr();
       break;
     case Idle_State:
-      Serial.println("Idle State");
+      //Serial.println("Idle State");
       if(GrnFlash.isRunning() || !InIdle){
         GrnFlash.start(GRN_PL);
         GrnFlash.stop(GRN_PL);
@@ -605,12 +605,12 @@ void loop(){
       }
       break;
     case Shutdown_State:
-      Serial.println("Shutdown State");
+      //Serial.println("Shutdown State");
       GrnFlash.flash(GRN_PL);
       PcPwrOff();
       break;
     case Fault_State:
-      Serial.println("Fault State");
+      //Serial.println("Fault State");
       FaultMode();
       RedFlash.flash(RED_PL);
       GRN_PL = LOW;

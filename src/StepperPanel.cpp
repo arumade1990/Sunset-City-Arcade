@@ -358,7 +358,7 @@ void VarReset(bool reset = false){
 		ShutdownDataRecorded = LOW;
 
 		MaintVarSet = HIGH;
-		Serial.println("Vars reset");
+		//Serial.println("Vars reset");
 	}
 	
 }
@@ -418,7 +418,7 @@ void AutoMode(){
 		}
 
 	}else if(MAINT_KEY){
-		Serial.println("maint key detected from auto mode");
+		//Serial.println("maint key detected from auto mode");
 		PanelMode = Maint_State;
 		return;
 	}else if(FAULTED){
@@ -481,7 +481,7 @@ void ShutdownInit(){
 		SaveState.end();
 		ShutdownDataRecorded = HIGH;
 		
-		Serial.println("Data Saved.");
+		//Serial.println("Data Saved.");
 		delay(3000);
 	}
 	
@@ -539,7 +539,7 @@ void GateChecks(){
 	if(PanelMode == Fault_State){
 		CL86T_EN = LOW;
 	}else if(PanelMode != Fault_State && !CL86T_EN){
-		Serial.println("Waiting for CL86T Enable Gate check...");
+		//Serial.println("Waiting for CL86T Enable Gate check...");
 		CL86T_EN = HIGH;
 		if(!CL86T_Reset_Timer.isRunning()){
 			CL86T_Reset_Timer.start();
@@ -575,7 +575,7 @@ void GateChecks(){
 	}
 
 	if(MAINT_KEY && !FAULTED){
-		Serial.println("Maint Key detected.");
+		//Serial.println("Maint Key detected.");
 		PanelMode = Maint_State;
 	}
 	
@@ -586,7 +586,7 @@ void GateChecks(){
 		}
 
 		if(SEQ_STOP && !HORZ_CYC_COMP){
-			Serial.println("Seq_Stop detected.");
+			//Serial.println("Seq_Stop detected.");
 			PanelMode = Home_State;
 		}else if(SEQ_STOP && HORZ_CYC_COMP){
 			PanelMode = Shutdown_State;
@@ -603,7 +603,7 @@ void GetPrevStateData(){ //This should only run once in the setup function.
 	VERT_CYC_COMP = SaveState.getBool("VertState", LOW);
 	SaveState.end();
 	
-	Serial.println("Data Retrieved.");
+	//Serial.println("Data Retrieved.");
 	delay(3000);
 
 }
@@ -632,13 +632,13 @@ void setup(){
   pinMode(QX10, OUTPUT); //HORIZONTAL SIGNAL OUT TO SMGP 6
   pinMode(QX11, OUTPUT); //SPARE
   
-  Serial.begin(115200);
+  //Serial.begin(115200);
 
-  while(!Serial){
-	delay(100);
-	}
+  //while(!Serial){
+	//delay(100);
+	//}
 
-  Serial.println("Serial Initialized.");
+  //Serial.println("Serial Initialized.");
 
   GetPrevStateData();
 	
@@ -654,28 +654,28 @@ void loop(){
 	switch (PanelMode)
 	{
 	case Boot_State: //boot mode
-		Serial.println("Boot_State Entered");
+		//Serial.println("Boot_State Entered");
 		PLC2_RDY = HIGH;
 		bootUpEN();
 		break;
 	case Auto_State: //auto mode
-		Serial.println("Auto_State Entered");
+		//Serial.println("Auto_State Entered");
 		AutoMode();
 		break;
 	case Maint_State: //maint mode
 		MaintMode();
-		Serial.println("Maint_State Entered");
+		//Serial.println("Maint_State Entered");
 		break;
 	case Fault_State: //fault mode
-		Serial.println("Fault_State Entered");
+		//Serial.println("Fault_State Entered");
 		FaultMode();
 		break;
 	case Shutdown_State: //shutdown
-		Serial.println("Shutdown_State Entered");
+		///Serial.println("Shutdown_State Entered");
 		ShutdownInit();
 		break;
 	case Home_State:
-		Serial.println("Home_State Entered");
+		//Serial.println("Home_State Entered");
 		HomeMode(); //In-between mode to ensure the screen gets to horizontal position before shutting down. 
 		break;
 	default:
