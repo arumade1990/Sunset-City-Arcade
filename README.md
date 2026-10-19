@@ -16,3 +16,9 @@ Now of course, there are variables out of my control, like power outages and suc
 
 Thanks for coming to my TED talk. 
 -Andy
+
+**=====UPDATES====**
+10/18/26 - 
+The entire source code version is now ready to do a full scale hardware test as of the latest commit. Will test out at a later date.
+
+
