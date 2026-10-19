@@ -4,7 +4,7 @@
 
 #include <Arduino.h>
 #include <Timer.h>
-#include <ToggleFlipflop.h>
+#include <ToggleFlipFlop.h>
 #include <Flasher.h>
 #include <OneShotPulse.h>
 #include <TimerON.h>
