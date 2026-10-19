@@ -200,24 +200,18 @@ void PcPwrOff(){
   }
 
   if(PwrTries > 0){
-    if(SHUTDOWN_RDY){
+    if(SHUTDOWN_RDY && MC2_PWR){
       shutdownConfirm = HIGH;
-    }else if(!SHUTDOWN_RDY){
+    }else if(!SHUTDOWN_RDY && MC2_PWR){
       shutdownConfirm = LOW;
-    }else if(PwrTries == 0){
-      TOTAL_PWR_OFF = HIGH;
-      if(!PnlShutdownCycleTime.isRunning()){
-        PnlShutdownCycleTime.start();
-      }
     }
 
-    ShutdownConfirmTmr.update(MC2_PWR, LOW, shutdownConfirm, HIGH, 5000); //Shuts off MC2 once SHUTDOWN READY  signal is received. 
+    if(MC2_PWR){
+      ShutdownConfirmTmr.update(MC2_PWR, LOW, shutdownConfirm, HIGH, 5000); //Shuts off MC2 once SHUTDOWN READY  signal is received.
+    }
 
-    if(!MC2_PWR && shutdownConfirm){
+    if(!MC2_PWR && !TOTAL_PWR_OFF && shutdownConfirm){
       TotalShutdownTimer.update(TOTAL_PWR_OFF, HIGH, MC2_PWR, LOW, 3000);
-      if(!PnlShutdownCycleTime.isRunning()){
-        PnlShutdownCycleTime.start();
-      }
     }
 
     if(CycleTimeout){
@@ -226,6 +220,11 @@ void PcPwrOff(){
       PnlShutdownCycleTime.stop();
       return;
     }
+  }else if(PwrTries == 0){
+      TOTAL_PWR_OFF = HIGH;
+      if(!PnlShutdownCycleTime.isRunning()){
+        PnlShutdownCycleTime.start();
+      }
   }
   return;
 }
@@ -375,7 +374,6 @@ void FaultMode() { // If a fault occurs, you basically have to do the power sequ
   }
   return;
 }
-
 
 bool PowerUpMode(bool reset = false){
 
@@ -663,6 +661,8 @@ void loop(){
   }else{
     SEQ_START_MEM = LOW;
   }
+
+  //TOTAL_PWR_OFF = HIGH; //test
 
 	writeOutputs();
 }
