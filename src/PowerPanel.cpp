@@ -131,6 +131,7 @@ enum RunMode {
   Idle_State,
   PreBoot
 };
+
 RunMode PanelMode = PreBoot;
 
 enum MntMode{

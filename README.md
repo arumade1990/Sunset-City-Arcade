@@ -18,7 +18,13 @@ Thanks for coming to my TED talk.
 -Andy
 
 **=====UPDATES====**
-10/18/26 - 
+10/18/26 
 The entire source code version is now ready to do a full scale hardware test as of the latest commit. Will test out at a later date.
 
+10/19/26
+Tested code on physical hardware. After some debugging, the features tested worked well. 
+Main issues encountered:
+-MC2 Not shutting off properly in shutdown sequence. This was caused by a quirk in the TimerON class where it toggles the output instead of taking it to a specific state. I may change this behaviour in that class in the future, but for now I'm leaving it since it's fairly easy to work around.
+-In the same function, the Total Power Off output was not coming onat all. This was due to a logic flaw that I had in an earlier part of the function locking out the statment that turns the output on. Once identified, I was able to do a slight re-work of the logic and got it working smoothly. 
 
+As of right now there are a few things that I need to test before putting this whole setup together with the arcade PC rig. These items include the rest of the maintenance fucntions, the faults functions and the fault reset functions. The stepper controller jog functions also need to be fully tested if possible too, but I'm not sure of a good way to do that without just hooking it up the the whole PC. Either way it should be OK. 
