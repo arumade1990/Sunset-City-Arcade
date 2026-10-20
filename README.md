@@ -40,7 +40,7 @@ I was also able to devise a way to test the jog function of the stepper controll
 Things left to do before doing the full test run with the total rig:
 ----Solder up the revised stepper controller/FT232H board, and MUCH needed upgrade, but I previously did not want to chagne the test conditions since I knew my botched one worked after I fixed my mistakes on it. The new one should be much more reliable in the long run. 
 
-----Button up the wiring and update the prints. As you might expect the wiring has gotten a bit out of sorts during the weeks of testing. It needs to be tidied up again and put back in a state to be ready to install into a cabinet! (Finally!)
+----Button up the wiring and update the prints. As you might expect the wiring has gotten a bit out of sorts during the weeks of testing. It needs to be tidied up again and put back in a state to be ready to install into a cabinet! (Finally!) Also there are some chagnes to the wiring that I didn't knwo would happen until I started putting things through their paces so that should really be documented for future reference. Theres over 250 feet of 16awg wire in this damn thing and even knowing how it's build inside and out it can be tough without at least a reminder of what goes where!
 
 ----Adjust the load wheels on the stepper mount. One side doesn't touch fully and it needs to. Should e a fairly easy adjustment but definitely easier with the screen not being on there. 
 
