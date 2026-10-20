@@ -86,6 +86,7 @@ Timer SaveStateTimer(1500);
 OneShotPulse horzPulse;
 OneShotPulse vertPulse;
 TimerON CL86T_EN_DLY;
+TimerON SysRdyDly;
 
 //create object for saving some non-volatile data
 Preferences SaveState; 
@@ -131,6 +132,7 @@ bool VERT_OUT_TRIG = LOW;
 bool MaintVarSet = LOW;
 bool ShutdownDataRecorded = LOW;
 bool ShutDownFlt = LOW;
+bool SYS_RDY_DLY = LOW;
 
 enum RunMode{
 	Boot_State, //0
@@ -536,6 +538,10 @@ void GateChecks(){
 
 	bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
 
+	//if(!SYS_RDY_DLY){
+	//SysRdyDly.update(SYS_RDY_DLY, HIGH, SYS_RDY_IN, HIGH, 10000); //The system ready bit must be on for 10 secodn before it passes it to the rest of the code. 
+	//}
+	
 	if(PanelMode == Fault_State){
 		CL86T_EN = LOW;
 	}else if(PanelMode != Fault_State && !CL86T_EN){
@@ -681,8 +687,6 @@ void loop(){
 	default:
 		break;
 	}
-
-	SPARE_OUT = CL86T_EN;
 
 	writeOutputs();
 }
