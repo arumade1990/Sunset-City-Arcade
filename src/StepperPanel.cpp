@@ -133,6 +133,7 @@ bool MaintVarSet = LOW;
 bool ShutdownDataRecorded = LOW;
 bool ShutDownFlt = LOW;
 bool SYS_RDY_DLY = LOW;
+bool PWR_DN_TRG_MEM = LOW;
 
 enum RunMode{
 	Boot_State, //0
@@ -357,6 +358,7 @@ void VarReset(bool reset = false){
 		PWR_DN_PRP = LOW;
 		SEQ_STOP = LOW;
 		RDY_PWR_DN = LOW;
+		PWR_DN_TRG_MEM = LOW;
 		ShutdownDataRecorded = LOW;
 
 		MaintVarSet = HIGH;
@@ -387,7 +389,7 @@ void AutoMode(){
 	if(!MAINT_KEY && !FAULTED && CL86T_EN){
 		
 		//System ready checks
-		if(SYS_RDY_IN && !PWR_DN_TRGD && !SEQ_STOP_IN && !RDY_PWR_DN){
+		if(SYS_RDY_IN && !PWR_DN_TRG_MEM && !SEQ_STOP_IN && !RDY_PWR_DN){
 			AUTO_MODE_OK = HIGH;
 			SYS_RDY_MEM = HIGH;
 			SYS_RDY = SYS_RDY_MEM;
@@ -434,7 +436,7 @@ void AutoMode(){
 void HomeMode(){
 	bool isBusy = (HORZ_CALL_MEM || VERT_CALL_MEM);
 
-	if(PWR_DN_TRGD && !HORZ_CYC_COMP){
+	if(PWR_DN_TRG_MEM && !HORZ_CYC_COMP){
 		// 1. CHOOSE AN ACTION (Only allowed if the system is NOT busy!)
 		if(!isBusy){
 			if(HORZ_CALL && !VERT_CALL && !HORZ_CYC_COMP){
@@ -487,7 +489,7 @@ void ShutdownInit(){
 		delay(3000);
 	}
 	
-	if(HORZ_CYC_COMP && PWR_DN_TRGD && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
+	if(HORZ_CYC_COMP && PWR_DN_TRG_MEM && !SYS_RDY_IN && !PWR_DN_PRP && !PwrDownTimer.isRunning()){
 		SYS_RDY_MEM = LOW;
 		PWR_DN_PRP = HIGH;
 		PwrDownTimer.start();
@@ -589,6 +591,10 @@ void GateChecks(){
 
 		if(SEQ_STOP_IN && !SEQ_STOP){
 			SEQ_STOP = HIGH;
+		}
+
+		if(PWR_DN_TRGD && !PWR_DN_TRG_MEM){
+			PWR_DN_TRG_MEM = HIGH;
 		}
 
 		if(SEQ_STOP && !HORZ_CYC_COMP){
